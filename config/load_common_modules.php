@@ -13,13 +13,16 @@ require_once dirname(__DIR__)."/config/error/error.php";
 //4. Error handling File
 require_once dirname(__DIR__)."/config/success/success.php";
 
-//5. DB Config file
+//5. Allowed Request Type
+require_once dirname(__DIR__)."/config/allowedRequestType.php";
+
+//6. DB Config file
 require_once dirname(__DIR__)."/db/config.php";
 
-//6. log handler file
+//7. log handler file
 require_once dirname(__DIR__)."/config/log_handler.php";
 
-//7. token handling api
+//8. token handling api
 require_once dirname(__DIR__)."/token/token_generation.php";
 
 

@@ -2,7 +2,11 @@
 define("E_TOKEN_ERR","Token Error");
 define("E_NO_TOKEN","No Token Found");
 define("E_NO_BEARER_TOKEN","No Bearer Token Found");
-define("E_TOKEN_REG","Token Is Disabled");
+define("E_TOKEN_REG","Token Is Inactive");
+define("E_INV_TOKEN","Token Is Invalid");
+
+define("E_PAYLOAD_EMPTY","Payload Empty");
+define("E_PAYLOAD_INV","Payload Invalid");
 
 
 define("E_INV_REQ","INVALID REQUEST");

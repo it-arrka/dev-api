@@ -1,7 +1,7 @@
 <?php
 
 //This values comes from routes.php .. $const_api_path/$route_function_trigger_params
-require_once $const_api_path.'/login_rest_api.php';
+require_once $_ENV['HOME_PATH'].'/modules/login_rest_api.php';
 
 
 switch($route_function_trigger_params){

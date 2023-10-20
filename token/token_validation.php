@@ -4,7 +4,7 @@ use Firebase\JWT\Key;
 
 
 // token handler
-function access_token_handler($successReturn=false) {
+function AccessTokenValidationHandler($successReturn=false) {
     // Get the Authorization header
     if(!isset($_SERVER['HTTP_AUTHORIZATION'])){
         catchErrorHandler(401, [ "message"=>E_NO_TOKEN, "error"=>"" ]);
@@ -22,6 +22,8 @@ function access_token_handler($successReturn=false) {
         }
         if($successReturn){
             commonSuccessResponse($output['code'], $output['data'], $output['message']);
+        }else{
+            return $output;
         }
 
     } else {
@@ -45,7 +47,7 @@ function decode_jwt_access_tokens($token,$type){
 
 
         if($decoded->iss != $serverName || $decoded->nbf > $now->getTimestamp() || $decoded->exp < $now->getTimestamp() || $type!=$decoded->type){
-            $arr_return=["code"=>401, "success"=>false, "message"=>"", "error"=>"" ];
+            $arr_return=["code"=>401, "success"=>false, "message"=>E_INV_TOKEN, "error"=>"" ];
             return $arr_return;
         }else{
              // Access token claims

@@ -8,6 +8,27 @@ use Firebase\JWT\JWT;
 
 require_once 'token_validation.php';
 
+//refresh token handler
+function RefreshTokenHandler(){
+    try{
+      $jsonString = file_get_contents('php://input');
+      $json = json_decode($jsonString,true);
+  
+      if(isset($json['refresh_token'])){
+        $output = generate_token_by_refresh_token($json['refresh_token']);
+        if($output['success']){
+          commonSuccessResponse($output['code'],$output['data'],$output['message']);
+        }else{
+          catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+        }
+      }else{
+        catchErrorHandler(400,[ "message"=>"Invalid Payload", "error"=>"" ]);
+      }
+    }catch(Exception $e){
+      catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
+    }
+  }
+
 //Call this function to generate tokens. @param :: $email
 function generate_jwt_tokens($email){
     try{
@@ -50,7 +71,7 @@ function generate_jwt_tokens($email){
         $arr_return=["code"=>200, "success"=>true, "message"=>"", "data"=>$data];
         return $arr_return;
     }catch(Exception $e){
-        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>$e->getMessge()];
+        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
         return $arr_return;
      }
 }
@@ -115,33 +136,29 @@ function generate_and_save_tokens_for_user($email){
             }
         }
 
-         //start an active session for this toke
-         $session_data=Cassandra\Type::map(Cassandra\Type::varchar(), Cassandra\Type::varchar())->create();
-        //  foreach ($_SESSION as $key_session => $value_session) {
-        //     if(!is_array($value_session)){
-        //         $session_data->set($key_session,(string)$value_session);
-        //     }
-        //  }
+        //get role and company
+        $companycode = "";
+        $role = "";
 
          $columns=[
             "email",
-            "session_id",
             "user_agent",
-            "session_data",
             "status",
             "createdate",
             "effectivedate",
-            "access_token"
+            "access_token",
+            "companycode",
+            "role"
           ];
           $columns_data=[
             $email,
-            "",
             $_SERVER['HTTP_USER_AGENT'],
-            $session_data,
             "active",
             $timestamp,
             $timestamp,
-            $access_token
+            $access_token,
+            $companycode,
+            $role
           ];
           $data_for_insert=[
             "action"=>"insert", //read/insert/update/delete
@@ -160,7 +177,42 @@ function generate_and_save_tokens_for_user($email){
             return $table_insert;
           }
     }catch(Exception $e){
-        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>$e->getMessge()];
+        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
+        return $arr_return;
+    }
+}
+
+//generate token by refresh token
+function generate_token_by_refresh_token($refresh_token){
+    try{
+        global $session;
+        // refresh_token
+        if($refresh_token==""){
+            $arr_return=["code"=>401, "success"=>false, "message"=>E_PAYLOAD_EMPTY, "error"=>""];
+            return $arr_return;
+            exit();
+        }
+
+        //validate this token
+        $jwt_token=decode_jwt_access_tokens($refresh_token,"refresh");
+        if(!$jwt_token['success']){ return $jwt_token; exit(); }
+
+        $jwt_data=$jwt_token['data'];
+        $email = $jwt_data['email'];
+
+        //validate refresh token against jwt_token
+        $result= $session->execute($session->prepare("SELECT email FROM jwt_token WHERE email=? AND status=? AND token_type=? AND jwt_token=?"),array('arguments'=>array(
+            $email,"active","refresh",$refresh_token
+        )));
+        if($result->count()==0){
+            $arr_return=["code"=>401, "success"=>false, "message"=>E_PAYLOAD_INV, "error"=>""]; exit();
+        }
+
+        //generate new token
+        $output = generate_and_save_tokens_for_user($email);
+        return $output;
+    }catch(Exception $e){
+        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
         return $arr_return;
     }
 }

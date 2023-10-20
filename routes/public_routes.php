@@ -20,7 +20,7 @@ $routeRemainingPath = substr($_SERVER['REQUEST_URI'], strlen('/routes/'));
 // Split the remaining path into parts based on "/" delimiter
 $route_parts = explode('/', $routeRemainingPath);
 // Determine the action or page based on the first part of the URL
-$route_part_1=""; $route_part_2=""; $route_function_trigger_params=""; $const_api_path="";
+$route_part_1=""; $route_part_2=""; $route_function_trigger_params="";
 if(isset($route_parts[1])){ $route_part_1=$route_parts[1]; }
 if(isset($route_parts[2])){ $route_part_2=$route_parts[2]; }
 if(isset($route_parts[3])){ $route_function_trigger_params=$route_parts[3]; }
@@ -35,8 +35,10 @@ if($route_part_1=="" || $route_part_2=="" || $route_function_trigger_params=="")
 
 //put a switch case
 switch($route_part_2){
+    case "token":
+        require_once 'public/token_routes.php';
+        break;    
     case "login":
-        $const_api_path = dirname(__DIR__).'/modules';
         require_once 'public/login_routes.php';
         break;
     case "signup":
