@@ -63,20 +63,20 @@ function table_crud_actions($data)
 
             $arr_value=[];
             foreach ($result as $row) { $arr_value[]=$row; }
-            $arr_return=["code"=>200, "success"=>true, "message"=>"","data"=>$arr_value];
+            $arr_return=["code"=>200, "success"=>true, "data"=>$arr_value];
             return $arr_return;
           }else {
             $result=$session->execute($query_1);
             $arr_value=[];
             foreach ($result as $row) { $arr_value[]=$row; }
-            $arr_return=["code"=>200, "success"=>true, "message"=>"","data"=>$arr_value];
+            $arr_return=["code"=>200, "success"=>true, "data"=>$arr_value];
             return $arr_return;
           }
         }else {
           $result=$session->execute($query_1);
           $arr_value=[];
           foreach ($result as $row) { $arr_value[]=$row; }
-          $arr_return=["code"=>200, "success"=>true, "message"=>"","data"=>$arr_value];
+          $arr_return=["code"=>200, "success"=>true, "data"=>$arr_value];
           return $arr_return;
         }
 
@@ -106,7 +106,7 @@ function table_crud_actions($data)
           $result=$session->execute($session->prepare($query_1), array('arguments'=>$conditon_column_data));
 
           $arr_value=['insert'=>true];
-          $arr_return=["code"=>200, "success"=>true, "message"=>"","data"=>$arr_value];
+          $arr_return=["code"=>200, "success"=>true, "data"=>$arr_value];
           return $arr_return;
         break;
 
@@ -133,7 +133,7 @@ function table_crud_actions($data)
 
         $arr_value=[];
         foreach ($result as $row) { $arr_value[]=$row; }
-        $arr_return=["code"=>200, "success"=>true, "message"=>"","data"=>$arr_value];
+        $arr_return=["code"=>200, "success"=>true, "data"=>$arr_value];
         return $arr_return;
         break;
 
@@ -157,7 +157,7 @@ function table_crud_actions($data)
 
         $arr_value=[];
         foreach ($result as $row) { $arr_value[]=$row; }
-        $arr_return=["code"=>200, "success"=>true, "message"=>"","data"=>$arr_value];
+        $arr_return=["code"=>200, "success"=>true, "data"=>$arr_value];
         return $arr_return;
         break;
 
@@ -173,6 +173,7 @@ function table_crud_actions($data)
 }
 
 
+//check_if_email_is_active
 function check_if_email_is_active($email)
 {
   try{

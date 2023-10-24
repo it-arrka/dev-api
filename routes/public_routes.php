@@ -12,11 +12,11 @@ if ($_SERVER['REQUEST_METHOD'] != 'POST') {
 
 //load common modules
 require_once dirname(__DIR__)."/config/load_common_modules.php";
-require_once dirname(__DIR__)."/common/public/helpers.php";
 
 // Get the requested URL path by $_SERVER['REQUEST_URI']
 // Remove the "/routes/" prefix to get the remaining path
-$routeRemainingPath = substr($_SERVER['REQUEST_URI'], strlen('/routes/'));
+$parse_uri = parse_url($_SERVER['REQUEST_URI']);
+$routeRemainingPath = substr($parse_uri['path'], strlen('/routes/'));
 // Split the remaining path into parts based on "/" delimiter
 $route_parts = explode('/', $routeRemainingPath);
 // Determine the action or page based on the first part of the URL
@@ -38,11 +38,8 @@ switch($route_part_2){
     case "token":
         require_once 'public/token_routes.php';
         break;    
-    case "login":
-        require_once 'public/login_routes.php';
-        break;
-    case "signup":
-        require_once 'public/signup_routes.php';
+    case "user":
+        require_once 'public/user_routes.php';
         break;
     default:
          http_response_code(404); 

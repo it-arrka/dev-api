@@ -9,7 +9,7 @@ function UserLoginHandler(){
       $output = userLogin($json['email'],$json['password']);
 
       if($output['success']){
-        commonSuccessResponse($output['code'],$output['data'],$output['message']);
+        commonSuccessResponse($output['code'],$output['data']);
       }else{
         catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
       }

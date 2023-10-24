@@ -1,6 +1,6 @@
 <?php 
 
-function commonSuccessResponse($successCode,$data,$customMessage= ""){
+function commonSuccessResponse($successCode,$data){
     $successMessages = [
         200 => 'OK',
         201 => 'Created',
@@ -14,14 +14,8 @@ function commonSuccessResponse($successCode,$data,$customMessage= ""){
         // Set the appropriate HTTP response code
         http_response_code($successCode);
 
-        // Prepare the response message
-        $response = [
-            'message' => $customMessage,
-            'data' => $data
-        ];
-
         // Send the response as JSON
-        echo json_encode($response);
+        echo json_encode($data);
     } else {
         // If an invalid error code is provided, return a generic error response
         http_response_code(500); // Internal Server Error

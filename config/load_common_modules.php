@@ -25,5 +25,7 @@ require_once dirname(__DIR__)."/config/log_handler.php";
 //8. token handling api
 require_once dirname(__DIR__)."/token/token_generation.php";
 
+//9. helpers file
+require_once dirname(__DIR__)."/common/helpers.php";
 
 ?>

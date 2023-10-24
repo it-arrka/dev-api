@@ -21,7 +21,7 @@ function AccessTokenValidationHandler($successReturn=false) {
             catchErrorHandler($output['code'], [ "message"=>$output['message'], "error"=>$output['error'] ]);
         }
         if($successReturn){
-            commonSuccessResponse($output['code'], $output['data'], $output['message']);
+            commonSuccessResponse($output['code'], $output['data']);
         }else{
             return $output;
         }
@@ -54,7 +54,7 @@ function decode_jwt_access_tokens($token,$type){
              $email = $decoded->email;
 
              // Token has expired.. check for refresh token
-             $arr_return=["code"=>200, "success"=>true, "message"=>"Success", "data"=>['email'=>$email]];
+             $arr_return=["code"=>200, "success"=>true, "data"=>['email'=>$email]];
              return $arr_return;
         }
     }catch(Exception $e){
@@ -82,7 +82,7 @@ function validate_access_token($access_token){
         $email=$jwt_data['email'];
 
         //validate email against user active session
-        $result_token= $session->execute($session->prepare("SELECT email FROM user_active_session WHERE email=? AND status=? AND access_token=?"),array('arguments'=>array(
+        $result_token= $session->execute($session->prepare("SELECT email,companycode,law,role FROM user_active_session WHERE email=? AND status=? AND access_token=?"),array('arguments'=>array(
             $email,"active",$access_token
         )));
 
@@ -93,7 +93,14 @@ function validate_access_token($access_token){
             exit();
         }
 
-        $arr_return=["code"=>200, "success"=>true, "message"=>"Token Active", "data"=>["email"=>$email]];
+        $arr_return=[
+            "code"=>200, "success"=>true,
+            "data"=>[
+                "email"=>$email,
+                "role"=>$result_token[0]['role'],
+                "companycode"=>$result_token[0]['companycode'],
+                "law"=>$result_token[0]['law']
+            ]];
         return $arr_return;
     }catch(Exception $e){
        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage()];

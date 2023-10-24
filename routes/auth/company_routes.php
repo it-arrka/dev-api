@@ -6,11 +6,11 @@ require_once $_ENV['HOME_PATH'].'/modules/company_rest_api.php';
 switch($route_function_trigger_params){
     case 'companyList':
         allowedRequestTypes("GET");
-        GetCompanyListHandler("companyList");   
+        GetCompanyHandler("companyList");   
         break;
     case 'companyLogo':
         allowedRequestTypes("GET");
-        GetCompanyListHandler("companyLogo");   
+        GetCompanyHandler("companyLogo");   
         break;
     default:
         http_response_code(404); 

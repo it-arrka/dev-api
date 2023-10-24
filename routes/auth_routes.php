@@ -10,7 +10,8 @@ require_once dirname(__DIR__)."/config/load_common_modules.php";
 
 // Get the requested URL path by $_SERVER['REQUEST_URI']
 // Remove the "/routes/" prefix to get the remaining path
-$routeRemainingPath = substr($_SERVER['REQUEST_URI'], strlen('/routes/'));
+$parse_uri = parse_url($_SERVER['REQUEST_URI']);
+$routeRemainingPath = substr($parse_uri['path'], strlen('/routes/'));
 // Split the remaining path into parts based on "/" delimiter
 $route_parts = explode('/', $routeRemainingPath);
 // Determine the action or page based on the first part of the URL
@@ -32,14 +33,20 @@ if($route_part_1=="" || $route_part_2=="" || $route_function_trigger_params=="")
 $accessTokenValidationHandler=AccessTokenValidationHandler(false);
 
 $GLOBALS['email'] = $accessTokenValidationHandler['data']['email'];
+$GLOBALS['role'] = $accessTokenValidationHandler['data']['role'];
+$GLOBALS['companycode'] = $accessTokenValidationHandler['data']['companycode'];
+$GLOBALS['law'] = $accessTokenValidationHandler['data']['law'];
 
 //put a switch case
 switch($route_part_2){
     case "company":
         require_once 'auth/company_routes.php';
         break;
-    case "notification":
-        require_once 'auth/activity_routes.php';
+    case "law":
+        require_once 'auth/law_routes.php';
+        break;
+    case "user":
+        require_once 'auth/user_routes.php';
         break;
     case "governance":
         require_once 'auth/signup_routes.php';

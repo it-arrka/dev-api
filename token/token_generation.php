@@ -7,6 +7,7 @@
 use Firebase\JWT\JWT;
 
 require_once 'token_validation.php';
+require_once $_ENV['HOME_PATH'].'/modules/company_rest_api.php';
 
 //refresh token handler
 function RefreshTokenHandler(){
@@ -17,12 +18,12 @@ function RefreshTokenHandler(){
       if(isset($json['refresh_token'])){
         $output = generate_token_by_refresh_token($json['refresh_token']);
         if($output['success']){
-          commonSuccessResponse($output['code'],$output['data'],$output['message']);
+          commonSuccessResponse($output['code'],$output['data']);
         }else{
           catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
         }
       }else{
-        catchErrorHandler(400,[ "message"=>"Invalid Payload", "error"=>"" ]);
+        catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
       }
     }catch(Exception $e){
       catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
@@ -68,7 +69,7 @@ function generate_jwt_tokens($email){
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken
         ];
-        $arr_return=["code"=>200, "success"=>true, "message"=>"", "data"=>$data];
+        $arr_return=["code"=>200, "success"=>true, "data"=>$data];
         return $arr_return;
     }catch(Exception $e){
         $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
@@ -91,9 +92,15 @@ function generate_and_save_tokens_for_user($email){
         if(!$jwt_token['success']){ return $jwt_token; exit(); }
 
         $jwt_data = $jwt_token['data'];
-
         $access_token = $jwt_data['access_token'];
         $timestamp=new \Cassandra\Timestamp();
+
+        //get role and company and law
+        $lastActiveArr = get_last_active_customer_details($email);
+        if(!$lastActiveArr['success']){ return $lastActiveArr; exit(); }
+        $companycode = $lastActiveArr['data']['companycode'];
+        $role = $lastActiveArr['data']['role'];
+        $law = $lastActiveArr['data']['law'];
 
         foreach ($jwt_data as $keyJwt => $valueJwt) {
             if($keyJwt=='access_token'){
@@ -136,10 +143,6 @@ function generate_and_save_tokens_for_user($email){
             }
         }
 
-        //get role and company
-        $companycode = "";
-        $role = "";
-
          $columns=[
             "email",
             "user_agent",
@@ -148,7 +151,8 @@ function generate_and_save_tokens_for_user($email){
             "effectivedate",
             "access_token",
             "companycode",
-            "role"
+            "role",
+            "law"
           ];
           $columns_data=[
             $email,
@@ -158,7 +162,8 @@ function generate_and_save_tokens_for_user($email){
             $timestamp,
             $access_token,
             $companycode,
-            $role
+            $role,
+            $law
           ];
           $data_for_insert=[
             "action"=>"insert", //read/insert/update/delete
@@ -171,7 +176,7 @@ function generate_and_save_tokens_for_user($email){
           ];
           $table_insert=table_crud_actions($data_for_insert);
           if($table_insert['success']){
-            $arr_return=["code"=>200, "success"=>true,"message"=>"","data"=>$jwt_data];
+            $arr_return=["code"=>200, "success"=>true ,"data"=>$jwt_data];
             return $arr_return; 
           }else{
             return $table_insert;

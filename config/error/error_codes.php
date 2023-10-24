@@ -8,6 +8,8 @@ define("E_INV_TOKEN","Token Is Invalid");
 define("E_PAYLOAD_EMPTY","Payload Empty");
 define("E_PAYLOAD_INV","Payload Invalid");
 
+define("E_RES_NOT_FOUND","Resource Not Found");
+
 
 define("E_INV_REQ","INVALID REQUEST");
 define("E_INV_CRED","INVALID CREDENTIALS");
