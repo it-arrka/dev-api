@@ -4,8 +4,8 @@ function GetLawHandler($funcCallType){
     try{
       switch($funcCallType){
         case "lawList":
-          if(isset($GLOBALS['companycode'])){
-            $output = get_applicable_law_in_company($GLOBALS['companycode']);
+          if(isset($GLOBALS['companycode']) && isset($GLOBALS['law'])){
+            $output = get_applicable_law_in_company($GLOBALS['companycode'],$GLOBALS['law']);
             if($output['success']){
               commonSuccessResponse($output['code'],$output['data']);
             }else{
@@ -26,7 +26,7 @@ function GetLawHandler($funcCallType){
   }
 
 //get active law list from a company
-function get_applicable_law_in_company($companycode)
+function get_applicable_law_in_company($companycode, $activeLaw)
 {
   try {
     global $session;
@@ -38,6 +38,12 @@ function get_applicable_law_in_company($companycode)
     foreach ($result_law as $row_law) {
       //get disp name
       if ($row_law['law']!="") {
+        if($row_law['law']==$activeLaw){
+          $row_law['active']=true;
+        }else{
+          $row_law['active']=false;
+        }
+
         $result_disp= $session->execute($session->prepare("SELECT display_name,usingkey FROM lawkeys WHERE dispname=? ALLOW FILTERING"),array('arguments'=>array($row_law['law'])));
         $dispname=$row_law['law'];
         $key=$row_law['law'];
@@ -66,6 +72,9 @@ function get_applicable_law_in_company($companycode)
     if(count($law)==0){
         return ["code"=>404, "success" => false, "message"=>E_RES_NOT_FOUND, "error"=>"" ]; exit();
     }
+
+    //sort this array by law
+    array_multisort( array_column($law, "law"), SORT_ASC, $law);
 
     $arr_return=["code"=>200, "success"=>true, "data"=>$law];
     return $arr_return;

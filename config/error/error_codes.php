@@ -10,8 +10,12 @@ define("E_PAYLOAD_INV","Payload Invalid");
 
 define("E_RES_NOT_FOUND","Resource Not Found");
 
+define("E_NO_LAW_FOUND","Law Not Found");
+
+
 
 define("E_INV_REQ","INVALID REQUEST");
+define("E_AUTH_ERR","Authorization Error");
 define("E_INV_CRED","INVALID CREDENTIALS");
 define("E_USR_DISABLED","User has been disabled");
 define("E_FUNC_ERR","Functional Error");

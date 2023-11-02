@@ -12,6 +12,10 @@ switch($route_function_trigger_params){
         allowedRequestTypes("GET");
         GetCompanyHandler("companyLogo");   
         break;
+    case 'changecompany':
+        allowedRequestTypes("POST");
+        GetCompanyHandler("changecompany");   
+        break;
     default:
         http_response_code(404); 
         echo json_encode(["message"=>"404 Not Found"]);

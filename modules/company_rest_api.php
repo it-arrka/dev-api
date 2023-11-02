@@ -30,6 +30,21 @@ function GetCompanyHandler($funcCallType){
         }
         break;
 
+      case "changecompany":
+        $jsonString = file_get_contents('php://input');
+        $json = json_decode($jsonString,true);
+        if(isset($json['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['access_token'])){
+          $output = change_company_for_user($json['companycode'], $GLOBALS['email'], $GLOBALS['access_token']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
         default:
           catchErrorHandler(400,[ "message"=>E_INV_REQ, "error"=>"" ]);
           break;
@@ -169,36 +184,80 @@ function get_company_list($email)
   }
 }
 
-
-function get_company_logo($companycode)
+function change_company_for_user($change_companycode, $email, $access_token)
 {
   try {
     global $session;
-    if($companycode==""){
-      //Bad Request Error
-      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"" ]; exit();
-    }
 
-    //validate company
-    $result=$session->execute($session->prepare("SELECT clientlogoref FROM company WHERE companycode=?"),array('arguments'=>array($companycode)));
+    $arr_role = [];
+    $role_to_update = ""; $law_to_update = "";
+
+    $timestamp=new \Cassandra\Timestamp();
+    //validate companycode
+    $result= $session->execute($session->prepare("SELECT rtcrole FROM roletocustomer WHERE companycode=? AND rtccustemail=? AND rolestatus=? ALLOW FILTERING"),array('arguments'=>array($change_companycode,$email,"1")));
     if($result->count()==0){
-      //Bad Request Error
-      return ["code"=>400, "success" => false, "message"=>E_INV_REQ, "error"=>"" ]; exit();
+      return ["code"=>400, "success" => false, "message"=>E_INV_REQ, "error"=>"$change_companycode - $email - $access_token" ]; exit();
     }
 
-    $src_link='';
+    foreach ($result as $key) { array_push($arr_role,$key['rtcrole']); } sort($arr_role);
+    $role_to_update = $arr_role[0];
 
-    $clientlogoref = $result[0]['clientlogoref'];
-    if($clientlogoref!=''){
-      $result_doc=$session->execute($session->prepare("SELECT blobAsText(docupl),doctype,docname FROM docupload WHERE docid=?"),array('arguments'=>array(new Cassandra\Uuid($clientlogoref))));
-      $src_link=$result_doc->count();
-      if ($result_doc->count()>0) {
-        $src_link ='data:image/jpeg;base64,'.$result_doc[0]['system.blobastext(docupl)'];
+    //Get law
+    $noLaw=0;
+    $result_active= $session->execute($session->prepare("SELECT lastactivelaw FROM customer_active_data WHERE companycode=? AND email=?"),array('arguments'=>array($change_companycode,$email)));
+    if ($result->count()>0) {
+      $lastactivelaw=$result_active[0]['lastactivelaw'];
+      if ($lastactivelaw=="") {
+        $noLaw=1;
+      }else {
+        $result_applaw_check= $session->execute($session->prepare("SELECT law FROM applicablelaw WHERE companycode=? AND status=? AND law=? ALLOW FILTERING"),array('arguments'=>array($change_companycode,"1",$lastactivelaw)));
+        if ($result_applaw_check->count()>0) {
+          $law_to_update=$lastactivelaw;
+        }else {
+          $noLaw=1;
+        }
+      }
+    }else {
+      $noLaw=1;
+    }
+
+    if ($noLaw) {
+      $result_applaw= $session->execute($session->prepare("SELECT law FROM applicablelaw WHERE companycode=? AND status=? ALLOW FILTERING"),array('arguments'=>array($change_companycode,"1")));
+      if ($result_applaw->count()>0) {
+        $law_active=$result_applaw[0]['law'];
+        if($law_active==""){
+          $law_to_update="";
+        }else {
+          $law_to_update=$law_active;
+        }
+      }else {
+        $law_to_update="";
       }
     }
 
-    $arr_return=["code"=>200, "success"=>true, "data"=>['src'=>$src_link, 'clientlogoref'=>$clientlogoref]];
+    if($law_to_update == ""){
+      return ["code"=>400, "success" => false, "message"=>E_NO_LAW_FOUND, "error"=>"" ]; exit();
+    }
+
+    //first get the user_active_session data
+    $result_token= $session->execute($session->prepare("SELECT access_token FROM user_active_session WHERE email=? AND status=? AND access_token=?"),array('arguments'=>array($email,"active",$access_token)));
+    if ($result_token->count()== 0) {
+      return ["code"=>401, "success" => false, "message"=>E_AUTH_ERR, "error"=>"" ]; exit();
+    }
+
+    //update to user_active session
+    $session->execute($session->prepare("UPDATE user_active_session SET companycode=?, role=?, law=?, modifydate=? WHERE email=? AND status=? AND access_token=?"),array('arguments'=>array(
+      $change_companycode, $role_to_update, $law_to_update, $timestamp, $email, "active", $access_token
+    )));
+
+    //update the last companycode
+    $session->execute($session->prepare("UPDATE customer SET defcompcode=?,modifydate=? WHERE custemailaddress=?"), array('arguments'=>array($change_companycode,$timestamp,$email)));
+
+    
+    //return response
+    $arr_return=["code"=>200, "success"=>true, "data"=>["message"=>"company updated"]];
     return $arr_return;
+
   } catch (\Exception $e) {
     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
   }

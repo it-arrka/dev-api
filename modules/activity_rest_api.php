@@ -4,13 +4,32 @@ function GetActivityHandler($funcCallType){
   try{
 
     switch($funcCallType){
+
+    case "activityInfo":
+      $limit=10; $day = "ALL";
+      if(isset($_GET["limit"])){ $limit=(int)$_GET["limit"]; } 
+      if(isset($_GET["day"])){ $day=$_GET["day"]; } 
+
+      if(isset($GLOBALS['email']) && isset($GLOBALS['companycode']) && isset($GLOBALS['role'])){
+          $output = get_user_activity_info($GLOBALS['email'],$GLOBALS['companycode'], $GLOBALS['role'], $limit, $day);
+          if($output['success']){
+          commonSuccessResponse($output['code'],$output['data']);
+          }else{
+          catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+      }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+      }
+      break;
+
       case "activity":
-        $page=1; $limit=10;
+        $page=1; $limit=10; $day = "ALL";
         if(isset($_GET["page"])){ $page=(int)$_GET["page"]; } 
         if(isset($_GET["limit"])){ $limit=(int)$_GET["limit"]; } 
+        if(isset($_GET["day"])){ $day=$_GET["day"]; } 
 
         if(isset($GLOBALS['email']) && isset($GLOBALS['companycode']) && isset($GLOBALS['role'])){
-          $output = get_user_activity($GLOBALS['email'],$GLOBALS['companycode'], $GLOBALS['role'], $limit, $page);
+          $output = get_user_activity($GLOBALS['email'],$GLOBALS['companycode'], $GLOBALS['role'], $limit, $page, $day);
           if($output['success']){
             commonSuccessResponse($output['code'],$output['data']);
           }else{
@@ -22,12 +41,13 @@ function GetActivityHandler($funcCallType){
         break;
 
       case "activityAll":
-        $page=1; $limit=10;
+        $page=1; $limit=10; $day = "ALL";
         if(isset($_GET["page"])){ $page=(int)$_GET["page"]; } 
         if(isset($_GET["limit"])){ $limit=(int)$_GET["limit"]; } 
+        if(isset($_GET["day"])){ $day=$_GET["day"]; } 
 
         if(isset($GLOBALS['email']) && isset($GLOBALS['companycode'])){
-            $output = get_user_activity_all($GLOBALS['email'],$GLOBALS['companycode'], $limit, $page);
+            $output = get_user_activity_all($GLOBALS['email'],$GLOBALS['companycode'], $limit, $page, $day);
             if($output['success']){
             commonSuccessResponse($output['code'],$output['data']);
             }else{
@@ -47,8 +67,85 @@ function GetActivityHandler($funcCallType){
   }
 }
 
+//get_user_activity_info
+function get_user_activity_info($email, $companycode, $role, $limit, $day){
+  try{
+      global $session;
+
+      if($email=="" || $companycode=="" || $role== ""){
+        //Bad Request Error
+        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"" ]; exit();
+      }
+
+      $total_activity=0; $unseen_activity = 0; $open_activity = 0; $closed_activity = 0; $role_open = 0; 
+
+      //validate limit and page
+      if($limit<1){ $limit=1; }
+
+      $timestamp = 0;
+      if(strtoupper($day) != "ALL"){ 
+        $last_day = (int)$day;
+        if($last_day < 1){ $last_day = 1; }
+        $timestamp = strtotime("-". $last_day. " days");
+      }
+
+
+      $result = $session->execute($session->prepare("SELECT createdate,modifydate,icon_status,notice_to_role FROM notice WHERE notice_to = ? AND companycode=? AND status=? AND notice_status=? ALLOW FILTERING"), array('arguments' => array(
+        $email, $companycode, "1", "unseen"
+      )));
+
+      foreach($result as $row){
+        $modifydate_str=(string)$row['modifydate'];
+        if($modifydate_str == ""){ $modifydate_str=(string)$row['createdate']; }
+        $modifydate_int = (int)$modifydate_str/1000;
+
+        if($modifydate_int >= $timestamp){
+          $total_activity++;
+          $open_activity++;
+          if ($row['icon_status'] == '') { $unseen_activity++; }
+          if ($row['notice_to_role'] == $role) { $role_open++; }
+        }
+      }
+
+      $result_closed = $session->execute($session->prepare("SELECT createdate,modifydate FROM notice WHERE notice_to = ? AND companycode=? AND status=? AND notice_status=? ALLOW FILTERING"), array('arguments' => array(
+        $email, $companycode, "1", "seen"
+      )));
+
+      foreach($result_closed as $row_closed){
+        $modifydate_str=(string)$row_closed['modifydate'];
+        if($modifydate_str == ""){ $modifydate_str=(string)$row_closed['createdate']; }
+        $modifydate_int = (int)$modifydate_str/1000;
+        if($modifydate_int >= $timestamp){
+          $total_activity++;
+          $closed_activity++;
+        }
+      }
+
+      $pagination = ceil($open_activity/$limit);
+
+      $final_data=[
+        "total_activity" => $total_activity,
+        "unseen_activity" => $unseen_activity,
+        "open_activity" => $open_activity,
+        "closed_activity" => $closed_activity,
+        "role_open" => $role_open,
+        "role" => $role,
+        "day" => $day,
+        "limit" => $limit,
+        "pagination" => $pagination
+      ];
+
+      $arr_return=["code"=>200, "success"=>true, "data"=>$final_data ];
+      return $arr_return;
+
+    }catch(Exception $e){
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    }
+}
+
+
 //get_user_activity
-function get_user_activity($email, $companycode, $role, $limit, $page){
+function get_user_activity($email, $companycode, $role, $limit, $page, $day){
   try{
       global $session;
 
@@ -57,12 +154,21 @@ function get_user_activity($email, $companycode, $role, $limit, $page){
         return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"" ]; exit();
       }
 
+      //timestamp
+      $timestamp = 0;
+      if(strtoupper($day) != "ALL"){ 
+        $last_day = (int)$day;
+        if($last_day < 1){ $last_day = 1; }
+        $timestamp = strtotime("-". $last_day. " days");
+      }
+
       //validate limit and page
       if($limit<1){ $limit=1; } if($page<1){ $page=1; }
+      $page = $page - 1; 
 
-      $arr_activity = []; $arr_txn=[]; $unseen_activity = 0;
+      $arr_activity = []; $arr_txn=[]; $unseen_activity = 0; $total_activity = 0;
 
-      $result = $session->execute($session->prepare("SELECT notice_no,createdate,icon_status FROM notice WHERE notice_to = ? AND notice_to_role=? AND companycode=? AND status=? AND notice_status=? ALLOW FILTERING"), array('arguments' => array(
+      $result = $session->execute($session->prepare("SELECT notice_no,createdate,modifydate,icon_status FROM notice WHERE notice_to = ? AND notice_to_role=? AND companycode=? AND status=? AND notice_status=? ALLOW FILTERING"), array('arguments' => array(
         $email, $role, $companycode, "1", "unseen"
       )));
 
@@ -73,9 +179,15 @@ function get_user_activity($email, $companycode, $role, $limit, $page){
       }
       
       foreach ($result as $row_txn) {
-        $createdate_str=(string)$row_txn['createdate'];
-        $arr_txn[(string)$row_txn['notice_no']]=(int)$createdate_str;
-        if ($row_txn['icon_status'] == '') { $unseen_activity++; }
+        $modifydate_str=(string)$row_txn['modifydate'];
+        if($modifydate_str == ""){ $modifydate_str=(string)$row_txn['createdate']; }
+        $modifydate_int = (int)$modifydate_str/1000;
+
+        if($modifydate_int >= $timestamp){
+          $total_activity++;
+          $arr_txn[(string)$row_txn['notice_no']]=(int)$modifydate_int;
+          if ($row_txn['icon_status'] == '') { $unseen_activity++; }
+        }
       }
       arsort($arr_txn);
       //divide array and find specific chunks
@@ -101,7 +213,7 @@ function get_user_activity($email, $companycode, $role, $limit, $page){
             $row['createdate']=$createdate;
 
             $now_date = (string)new \Cassandra\Timestamp();
-            $date2 = (int)$now_date;
+            $date2 = (int)$now_date/1000;
             $date1 = $createdate;
             // Formulate the Difference between two dates
             $diff = abs($date2 - $date1);
@@ -127,9 +239,10 @@ function get_user_activity($email, $companycode, $role, $limit, $page){
 
       $final_data=[
         "limit" => $limit,
-        "page" => $page,
-        "pagination" => $total_index-1,
-        "total_activity" => $result->count(),
+        "day" => $day,
+        "page" => $page+1,
+        "pagination" => $total_index,
+        "total_activity" => $total_activity,
         "unseen_activity" => $unseen_activity,
         "activity" => $arr_activity
       ];
@@ -142,8 +255,9 @@ function get_user_activity($email, $companycode, $role, $limit, $page){
     }
 }
 
+
 //get_user_activity_all
-function get_user_activity_all($email, $companycode, $limit, $page){
+function get_user_activity_all($email, $companycode, $limit, $page, $day){
     try{
         global $session;
   
@@ -151,13 +265,22 @@ function get_user_activity_all($email, $companycode, $limit, $page){
           //Bad Request Error
           return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"" ]; exit();
         }
+
+        //timestamp
+        $timestamp = 0;
+        if(strtoupper($day) != "ALL"){ 
+          $last_day = (int)$day;
+          if($last_day < 1){ $last_day = 1; }
+          $timestamp = strtotime("-". $last_day. " days");
+        }
   
         //validate limit and page
         if($limit<1){ $limit=1; } if($page<1){ $page=1; }
+        $page = $page - 1; 
   
-        $arr_activity = []; $arr_txn=[]; $unseen_activity = 0;
+        $arr_activity = []; $arr_txn=[]; $unseen_activity = 0; $total_activity= 0;
   
-        $result = $session->execute($session->prepare("SELECT notice_no,createdate,icon_status FROM notice WHERE notice_to = ? AND companycode=? AND status=? AND notice_status=? ALLOW FILTERING"), array('arguments' => array(
+        $result = $session->execute($session->prepare("SELECT notice_no,createdate,modifydate,icon_status FROM notice WHERE notice_to = ? AND companycode=? AND status=? AND notice_status=? ALLOW FILTERING"), array('arguments' => array(
           $email, $companycode, "1", "unseen"
         )));
   
@@ -168,9 +291,15 @@ function get_user_activity_all($email, $companycode, $limit, $page){
         }
         
         foreach ($result as $row_txn) {
-          $createdate_str=(string)$row_txn['createdate'];
-          $arr_txn[(string)$row_txn['notice_no']]=(int)$createdate_str;
-          if ($row_txn['icon_status'] == '') { $unseen_activity++; }
+          $modifydate_str=(string)$row_txn['modifydate'];
+          if($modifydate_str == ""){ $modifydate_str=(string)$row_txn['createdate']; }
+          $modifydate_int = (int)$modifydate_str/1000;
+  
+          if($modifydate_int >= $timestamp){
+            $total_activity++;
+            $arr_txn[(string)$row_txn['notice_no']]=(int)$modifydate_int;
+            if ($row_txn['icon_status'] == '') { $unseen_activity++; }
+          }
         }
         arsort($arr_txn);
         //divide array and find specific chunks
@@ -192,11 +321,18 @@ function get_user_activity_all($email, $companycode, $limit, $page){
           foreach ($result_assign as $row) {
               unset($row['effectivedate']);
               $modifydate = (string)$row['modifydate'];
-              $row['modifydate']=(int)$modifydate;
+
+              if($modifydate == '') {
+                $modifydate ="-";
+              }else{
+                $modifydate = date("d-m-Y H:i:s",(int)$modifydate/1000);
+              }
+              $row['modifydate']=$modifydate;
+
               $row['createdate']=$createdate;
   
               $now_date = (string)new \Cassandra\Timestamp();
-              $date2 = (int)$now_date;
+              $date2 = (int)$now_date/1000;
               $date1 = $createdate;
               // Formulate the Difference between two dates
               $diff = abs($date2 - $date1);
@@ -222,9 +358,10 @@ function get_user_activity_all($email, $companycode, $limit, $page){
   
         $final_data=[
           "limit" => $limit,
-          "page" => $page,
-          "pagination" => $total_index-1,
-          "total_activity" => $result->count(),
+          "day" => $day,
+          "page" => $page+1,
+          "pagination" => $total_index,
+          "total_activity" => $total_activity,
           "unseen_activity" => $unseen_activity,
           "activity" => $arr_activity
         ];

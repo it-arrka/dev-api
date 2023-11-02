@@ -21,6 +21,30 @@ function UserLoginHandler(){
   }
 }
 
+function UserLogoutHandler(){
+  try{
+
+    $arr_cookies = [];
+    foreach ($_COOKIE as $name => $value) {
+      if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+          // Check if the cookie has the "Secure" attribute
+          if (isset($_COOKIE[$name]) && is_array($_COOKIE[$name]) && array_key_exists('secure', $_COOKIE[$name])) {
+              // This is a secure cookie
+              echo "Secure Cookie: Name: $name, Value: $value<br>";
+              $arr_cookies[]=[
+                "name" => $name,
+                "value" => $value
+              ];
+          }
+      }
+    }
+    commonSuccessResponse(200, $_COOKIE);
+
+  }catch (\Exception $e) {
+    catchErrorHandler(500, [ "message"=>"", "error"=>$e->getMessage() ]);
+  }
+}
+
 function userLogin($email,$password)
 {
   global $session;
@@ -51,7 +75,14 @@ function userLogin($email,$password)
     if(password_verify($password, $dbPassword)){
 
         //check if email is disabled
-        if (!check_if_email_is_active($email)) {
+        $emailDis=check_if_email_is_active($email);
+
+        if(!$emailDis['success']){
+          return $emailDis; exit();
+        }
+        $emailDisData = $emailDis['data'];
+
+        if (!$emailDisData['active']) {
             return ["code"=>401, "success" => false, "message"=>E_USR_DISABLED, "error"=>"" ]; exit();
         }
 

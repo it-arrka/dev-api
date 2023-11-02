@@ -2,8 +2,14 @@
 
 //set header to avoid CORS issue in Browser
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST');
-header("Access-Control-Allow-Headers: X-Requested-With");
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header("Access-Control-Allow-Headers: x-requested-with, Content-Type, Authorization");
+header("Access-Control-Allow-Credentials: true");
+
+if($_SERVER['REQUEST_METHOD'] === "OPTIONS"){
+    http_response_code(200);
+    exit;
+}
 
 //load common modules
 require_once dirname(__DIR__)."/config/load_common_modules.php";
@@ -36,9 +42,13 @@ $GLOBALS['email'] = $accessTokenValidationHandler['data']['email'];
 $GLOBALS['role'] = $accessTokenValidationHandler['data']['role'];
 $GLOBALS['companycode'] = $accessTokenValidationHandler['data']['companycode'];
 $GLOBALS['law'] = $accessTokenValidationHandler['data']['law'];
+$GLOBALS['access_token'] = $accessTokenValidationHandler['data']['access_token'];
 
 //put a switch case
 switch($route_part_2){
+    case "pageauth":
+        commonSuccessResponse(200,['message' => 'success']);
+        break;
     case "company":
         require_once 'auth/company_routes.php';
         break;

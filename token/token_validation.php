@@ -99,7 +99,8 @@ function validate_access_token($access_token){
                 "email"=>$email,
                 "role"=>$result_token[0]['role'],
                 "companycode"=>$result_token[0]['companycode'],
-                "law"=>$result_token[0]['law']
+                "law"=>$result_token[0]['law'],
+                "access_token"=>$access_token
             ]];
         return $arr_return;
     }catch(Exception $e){

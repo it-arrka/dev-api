@@ -8,6 +8,9 @@ switch($route_function_trigger_params){
     case 'login':
         UserLoginHandler();   
         break;
+    case 'logout':
+        UserLogoutHandler();   
+        break;
     // case 'signup':
     //     UserLoginHandler();   
     //     break;
