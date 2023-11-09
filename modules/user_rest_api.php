@@ -161,6 +161,9 @@ function get_common_page_data($email,$companycode,$role,$law){
       $companylogosrc = $companylogoFunc['data']['src'];
      }
 
+     //get governance steps
+     $result_gov= $session->execute($session->prepare("SELECT id FROM companydiytracker WHERE companycode=? AND law=? AND status=? ALLOW FILTERING"),array('arguments'=>array($companycode, $law, "1")));
+     $governance_steps = $result_gov->count()."/19";
 
     $data =[
       "email" => $email,
@@ -173,7 +176,8 @@ function get_common_page_data($email,$companycode,$role,$law){
       "username" => $username,
       "usershortname" => $usershortname,
       "compscore"=>$compscore,
-      "companylogosrc" => $companylogosrc
+      "companylogosrc" => $companylogosrc,
+      "governance_steps" => $governance_steps
     ];
   
     $arr_return=["code"=>200, "success"=>true, "data"=> $data ];

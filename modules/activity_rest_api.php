@@ -185,7 +185,7 @@ function get_user_activity($email, $companycode, $role, $limit, $page, $day){
 
         if($modifydate_int >= $timestamp){
           $total_activity++;
-          $arr_txn[(string)$row_txn['notice_no']]=(int)$modifydate_int;
+          $arr_txn[(string)$row_txn['notice_no']] = $modifydate_int;
           if ($row_txn['icon_status'] == '') { $unseen_activity++; }
         }
       }

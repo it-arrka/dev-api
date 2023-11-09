@@ -59,7 +59,10 @@ switch($route_part_2){
         require_once 'auth/user_routes.php';
         break;
     case "governance":
-        require_once 'auth/signup_routes.php';
+        require_once 'auth/governance_routes.php';
+        break;
+    case "incident":
+        require_once 'auth/incident_routes.php';
         break;
     default:
          http_response_code(404); 

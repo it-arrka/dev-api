@@ -269,17 +269,13 @@ function get_company_logo($companycode)
 }
 
 function shortenNameString($fullName) {
-
   if($fullName == ""){
     return ""; exit();
   }
-
   // Split the full name into words
   $words = explode(' ', $fullName);
-
   // Initialize an array to store initials
   $initials = array();
-
   // Iterate through the words to extract initials
   foreach ($words as $word) {
       // Extract the first character of the word and make it uppercase
@@ -291,11 +287,94 @@ function shortenNameString($fullName) {
           break;
       }
   }
-
   // Join the initials to form the short version
   $shortVersion = implode('', $initials);
-
   return $shortVersion;
+}
+
+
+/**
+ * Returns 200/success=true if page has the access to the particular pageid
+ * @param string $email
+ * @param string $role
+ * @param string $type  :: create/modify/view/all
+ * @param string $pageid  :: PG001, PG002
+ */
+function get_page_access_by_pageid($companycode, $email, $role, $type, $pageid)
+{
+  global $session;
+  try {
+
+    if($companycode == '' || $email == '' || $type == '' || $pageid == '') {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"" ]; exit();
+    }
+
+    $result= $session->execute($session->prepare("SELECT createaccess,modifyaccess,viewaccess FROM roletocustomer WHERE rtccustemail=? AND rtcrole=? AND rolestatus=? AND companycode=? ALLOW FILTERING"),array('arguments'=>array(
+      $email,$role,"1",$companycode
+    )));
+
+    $access = false;
+
+    $pageAccess = [];
+    foreach ($result as $row) {
+      switch ($type) {
+        case 'create':
+          $pageAccess=explode("|",$row['createaccess']); array_shift($pageAccess);
+          break;
+        case 'modify':
+          $pageAccess=explode("|",$row['modifyaccess']); array_shift($pageAccess);
+          break;
+        case 'view':
+          $pageAccess=explode("|",$row['viewaccess']); array_shift($pageAccess);
+          break;
+        case 'all':
+          $createaccess=explode("|",$row['createaccess']); array_shift($createaccess);
+          $modifyaccess=explode("|",$row['modifyaccess']); array_shift($modifyaccess);
+          $viewaccess=explode("|",$row['viewaccess']); array_shift($viewaccess);
+          $pageAccess = array_merge($createaccess,$modifyaccess,$viewaccess);
+          break;
+      }
+    }
+
+    if(in_array($pageid, $pageAccess)){ $access = true; }
+
+    if($access){
+      $arr_return=["code"=>200, "success"=>true, "data"=>["access"=>true]];
+      return $arr_return;
+    }else{
+      $arr_return=["code"=>403, "success"=>false, "message"=>E_NO_PAGE_ACCESS, "error"=>""];
+      return $arr_return;
+    }
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+  }
+}
+
+/**
+ * Get name from email
+ * This function will return name if avaialble else will return empty string
+ * @param string $email
+ */
+function get_name_from_email($email){
+  try {
+    global $session;
+
+    if($email == '') { return ""; exit(); }
+
+    $result= $session->execute($session->prepare("SELECT custfname,custlname FROM customer WHERE custemailaddress=?"),array('arguments'=>array(
+      $email
+    )));
+
+    //get name
+    $name = "";
+    if($result->count()>0){
+      $name = $result[0]['custfname'] ." ". $result[0]['custlname'];
+    }
+    return $name;
+  } catch (\Exception $e) {
+    //In case of error.. return ""
+    return "";
+  }
 }
 
 ?>

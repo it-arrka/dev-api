@@ -12,6 +12,9 @@ define("E_RES_NOT_FOUND","Resource Not Found");
 
 define("E_NO_LAW_FOUND","Law Not Found");
 
+define("E_NO_PAGE_ACCESS","No Page Access");
+
+
 
 
 define("E_INV_REQ","INVALID REQUEST");
