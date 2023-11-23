@@ -32,7 +32,11 @@ function GetUserHandler($funcCallType){
 
       case "changeRole":
         $jsonString = file_get_contents('php://input');
+        if($jsonString == ""){ catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit(); }
         $json = json_decode($jsonString,true);
+        if(!is_array($json)){
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
+        }
         if(isset($GLOBALS['email']) && isset($GLOBALS['companycode']) && isset($GLOBALS['access_token']) && isset($json['role'])){
           $output = change_user_role($GLOBALS['email'],$GLOBALS['companycode'],$GLOBALS['access_token'],$json['role']);
           if($output['success']){
@@ -47,7 +51,11 @@ function GetUserHandler($funcCallType){
 
       case "changeLaw":
         $jsonString = file_get_contents('php://input');
+        if($jsonString == ""){ catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit(); }
         $json = json_decode($jsonString,true);
+        if(!is_array($json)){
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
+        }
         if(isset($GLOBALS['email']) && isset($GLOBALS['companycode']) && isset($GLOBALS['access_token']) && isset($json['law'])){
           $output = change_user_law($GLOBALS['email'],$GLOBALS['companycode'],$GLOBALS['access_token'],$json['law']);
           if($output['success']){
@@ -65,7 +73,7 @@ function GetUserHandler($funcCallType){
           break;
     }
   }catch(Exception $e){
-    catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+    catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
   }
 }
 
@@ -105,7 +113,7 @@ function get_user_roles($email,$companycode, $activeRole){
       return $arr_return;
 
     }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 
@@ -184,7 +192,7 @@ function get_common_page_data($email,$companycode,$role,$law){
     return $arr_return;
 
   }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -218,7 +226,7 @@ function change_user_role($email, $companycode, $access_token, $roleToChange){
       return $arr_return;
 
     }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 
@@ -269,7 +277,7 @@ function change_user_law($email, $companycode, $access_token, $lawToChange){
       return $arr_return;
 
     }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 

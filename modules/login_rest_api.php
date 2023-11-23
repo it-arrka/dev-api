@@ -1,9 +1,12 @@
 <?php 
-
 function UserLoginHandler(){
   try{
     $jsonString = file_get_contents('php://input');
+    if($jsonString == ""){ catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit(); }
     $json = json_decode($jsonString,true);
+    if(!is_array($json)){
+      catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
+    }
 
     if(isset($json['email']) && isset($json['password'])){
       $output = userLogin($json['email'],$json['password']);

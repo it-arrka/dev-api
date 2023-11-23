@@ -4,6 +4,18 @@
 require_once $_ENV['HOME_PATH'].'/modules/company_rest_api.php';
 
 switch($route_function_trigger_params){
+    case 'addressList':
+        allowedRequestTypes("GET");
+        GetCompanyHandler("addressList");   
+        break;
+    case 'addressListFull':
+        allowedRequestTypes("GET");
+        GetCompanyHandler("addressListFull");   
+        break;
+    case 'departmentList':
+        allowedRequestTypes("GET");
+        GetCompanyHandler("departmentList");   
+        break;
     case 'companyList':
         allowedRequestTypes("GET");
         GetCompanyHandler("companyList");   

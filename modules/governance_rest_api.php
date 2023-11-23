@@ -42,7 +42,7 @@ function get_governance_steps($companycode, $email, $role, $law)
     $result_law= $session->execute($session->prepare("SELECT law FROM applicablelaw WHERE companycode=? AND status=? AND law=? ALLOW FILTERING"),array('arguments'=>array($companycode,"1",$law)));
 
     if ($result_law->count()==0) {
-        $arr_return=["code"=>404, "success"=>false, "message"=>E_RES_NOT_FOUND, "error"=>"" ];
+        $arr_return=["code"=>400, "success"=>false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid Law" ];
         return $arr_return; exit();
     }
 

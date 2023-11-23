@@ -13,7 +13,11 @@ require_once $_ENV['HOME_PATH'].'/modules/company_rest_api.php';
 function RefreshTokenHandler(){
     try{
       $jsonString = file_get_contents('php://input');
+      if($jsonString == ""){ catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit(); }
       $json = json_decode($jsonString,true);
+      if(!is_array($json)){
+        catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
+      }
   
       if(isset($json['refresh_token'])){
         $output = generate_token_by_refresh_token($json['refresh_token']);

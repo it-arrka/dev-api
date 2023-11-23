@@ -44,6 +44,12 @@ switch($route_part_2){
     case "user":
         require_once 'public/user_routes.php';
         break;
+    case "cookie":
+        require_once 'public/cookie_routes.php';
+        break;
+    case "mail":
+        require_once 'public/mail_routes.php';
+        break;
     default:
          http_response_code(404); 
          echo json_encode(["message"=>"404 Not Found"]);

@@ -32,9 +32,52 @@ function GetCompanyHandler($funcCallType){
 
       case "changecompany":
         $jsonString = file_get_contents('php://input');
+        if($jsonString == ""){ catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit(); }
         $json = json_decode($jsonString,true);
+        if(!is_array($json)){
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
+        }
         if(isset($json['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['access_token'])){
           $output = change_company_for_user($json['companycode'], $GLOBALS['email'], $GLOBALS['access_token']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
+      case "addressList":
+        if(isset($GLOBALS['companycode'])){
+          $output = get_address_list($GLOBALS['companycode']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
+      case "addressListFull":
+        if(isset($GLOBALS['companycode'])){
+          $output = get_address_list_full($GLOBALS['companycode']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
+      case "departmentList":
+        if(isset($GLOBALS['companycode'])){
+          $output = get_department_list($GLOBALS['companycode']);
           if($output['success']){
             commonSuccessResponse($output['code'],$output['data']);
           }else{
@@ -154,7 +197,6 @@ function get_company_list($email)
         $email,"1"
     )));
 
-    $dataFound = false;
     $existCompData=[];
 
     foreach ($result as $row) {
@@ -163,7 +205,6 @@ function get_company_list($email)
                 $row['companycode']
             )));
             if($result_comp->count()>0){
-                $dataFound = true;
                 $arr_company[] = [
                     "companycode" => $row['companycode'],
                     "companyname" => $result_comp[0]['companyname']
@@ -171,10 +212,6 @@ function get_company_list($email)
             }
             $existCompData[$row['companycode']]=true;
         }
-    }
-
-    if(!$dataFound){
-      return ["code"=>404, "success" => false, "message"=>E_RES_NOT_FOUND, "error"=>"" ]; exit();
     }
 
     $arr_return=["code"=>200, "success"=>true, "data"=>$arr_company];
@@ -256,6 +293,59 @@ function change_company_for_user($change_companycode, $email, $access_token)
     
     //return response
     $arr_return=["code"=>200, "success"=>true, "data"=>["message"=>"company updated"]];
+    return $arr_return;
+
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+  }
+}
+
+//get_address_list
+function get_address_list($companycode){
+  try {
+    global $session; $arr_add=array();
+
+    $res_add=$session->execute($session->prepare("SELECT cregisteredaddress1,cregisteredadcountry,cregisteredadstate,cregisteredadpincode,cregisteredadcity FROM company WHERE companycode=?"),array('arguments'=>array($companycode)));
+    foreach ($res_add as $row_add) { if($row_add['cregisteredaddress1']=="" || $row_add['cregisteredaddress1']==" "){ } else{ array_push($arr_add,$row_add['cregisteredaddress1']." ".$row_add['cregisteredadcity']." ".$row_add['cregisteredadstate']." ".$row_add['cregisteredadcountry']." ".$row_add['cregisteredadpincode']); } }
+
+    $res_add_2=$session->execute($session->prepare("SELECT locationaddress1,locationaddresscountry,locationaddressstate,locationaddresspincode,locationaddresscity FROM locationinscope WHERE companycode=? ALLOW FILTERING"),array('arguments'=>array($companycode)));
+    foreach ($res_add_2 as $row_add_2) { if($row_add_2['locationaddress1']=="" || $row_add_2['locationaddress1']==" "){ } else{ array_push($arr_add,$row_add_2['locationaddress1']." ".$row_add_2['locationaddresscity']." ".$row_add_2['locationaddressstate']." ".$row_add_2['locationaddresscountry']." ".$row_add_2['locationaddresspincode']); } }
+    $arr = array_unique($arr_add);
+    $arr_return=["code"=>200, "success"=>true, "data"=>$arr];
+    return $arr_return;
+
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+  }
+}
+
+//get_address_list full
+function get_address_list_full($companycode){
+  try {
+    global $session; $arr_add=array();
+
+    $res_add=$session->execute($session->prepare("SELECT cregisteredaddress1,cregisteredadcountry,cregisteredadstate,cregisteredadpincode,cregisteredadcity FROM company WHERE companycode=?"),array('arguments'=>array($companycode)));
+    foreach ($res_add as $row_add) { if($row_add['cregisteredaddress1']=="" || $row_add['cregisteredaddress1']==" "){ } else{ array_push($arr_add,$row_add['cregisteredaddress1']."~*|*~".$row_add['cregisteredadcity']."~*|*~".$row_add['cregisteredadstate']."~*|*~".$row_add['cregisteredadcountry']."~*|*~".$row_add['cregisteredadpincode']); } }
+
+    $res_add_2=$session->execute($session->prepare("SELECT locationaddress1,locationaddresscountry,locationaddressstate,locationaddresspincode,locationaddresscity FROM locationinscope WHERE companycode=? ALLOW FILTERING"),array('arguments'=>array($companycode)));
+    foreach ($res_add_2 as $row_add_2) { if($row_add_2['locationaddress1']=="" || $row_add_2['locationaddress1']==" "){ } else{ array_push($arr_add,$row_add_2['locationaddress1']."~*|*~".$row_add_2['locationaddresscity']."~*|*~".$row_add_2['locationaddressstate']."~*|*~".$row_add_2['locationaddresscountry']."~*|*~".$row_add_2['locationaddresspincode']); } }
+    $arr = array_unique($arr_add);
+
+    $final_arr = [];
+    foreach($arr as $addressString){
+      $addressArr = [];
+      $explodeArr = explode("~*|*~",$addressString);
+      $addressArr = [
+        'address1' => $explodeArr[0],
+        'country' => $explodeArr[3],
+        'state' => $explodeArr[2],
+        'city' => $explodeArr[1],
+        'pincode' => $explodeArr[4]
+      ];
+      $final_arr[] = $addressArr;
+    }
+
+    $arr_return=["code"=>200, "success"=>true, "data"=>$final_arr];
     return $arr_return;
 
   } catch (\Exception $e) {

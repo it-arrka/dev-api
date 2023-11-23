@@ -172,11 +172,6 @@ function get_user_activity($email, $companycode, $role, $limit, $page, $day){
         $email, $role, $companycode, "1", "unseen"
       )));
 
-      //if result count is empty or 0
-      if($result->count()==0){
-        $arr_return=["code"=>404, "success"=>false, "message"=>E_RES_NOT_FOUND, "error"=>"" ];
-        return $arr_return; exit();
-      }
       
       foreach ($result as $row_txn) {
         $modifydate_str=(string)$row_txn['modifydate'];
@@ -190,14 +185,12 @@ function get_user_activity($email, $companycode, $role, $limit, $page, $day){
         }
       }
       arsort($arr_txn);
+      $arr_final_txn = [];
       //divide array and find specific chunks
       $array_chunk=array_chunk($arr_txn,$limit,true);
       $total_index=count($array_chunk);
       if(isset($array_chunk[$page])){
         $arr_final_txn=$array_chunk[$page];
-      }else{
-        $arr_return=["code"=>404, "success"=>false, "message"=>E_RES_NOT_FOUND, "error"=>"" ];
-        return $arr_return; exit();
       }
 
       //loop through arr_txn
@@ -284,12 +277,6 @@ function get_user_activity_all($email, $companycode, $limit, $page, $day){
           $email, $companycode, "1", "unseen"
         )));
   
-        //if result count is empty or 0
-        if($result->count()==0){
-          $arr_return=["code"=>404, "success"=>false, "message"=>E_RES_NOT_FOUND, "error"=>"" ];
-          return $arr_return; exit();
-        }
-        
         foreach ($result as $row_txn) {
           $modifydate_str=(string)$row_txn['modifydate'];
           if($modifydate_str == ""){ $modifydate_str=(string)$row_txn['createdate']; }
@@ -302,14 +289,12 @@ function get_user_activity_all($email, $companycode, $limit, $page, $day){
           }
         }
         arsort($arr_txn);
+        $arr_final_txn = [];
         //divide array and find specific chunks
         $array_chunk=array_chunk($arr_txn,$limit,true);
         $total_index=count($array_chunk);
         if(isset($array_chunk[$page])){
           $arr_final_txn=$array_chunk[$page];
-        }else{
-          $arr_return=["code"=>404, "success"=>false, "message"=>E_RES_NOT_FOUND, "error"=>"" ];
-          return $arr_return; exit();
         }
   
         //loop through arr_txn
