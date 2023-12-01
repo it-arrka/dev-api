@@ -63,7 +63,7 @@ function GetActivityHandler($funcCallType){
           break;
     }
   }catch(Exception $e){
-    catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+    catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
   }
 }
 
@@ -139,7 +139,7 @@ function get_user_activity_info($email, $companycode, $role, $limit, $day){
       return $arr_return;
 
     }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 
@@ -244,7 +244,7 @@ function get_user_activity($email, $companycode, $role, $limit, $page, $day){
       return $arr_return;
 
     }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 
@@ -355,7 +355,7 @@ function get_user_activity_all($email, $companycode, $limit, $page, $day){
         return $arr_return;
   
       }catch(Exception $e){
-        return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+        return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
       }
   }
 

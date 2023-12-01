@@ -139,7 +139,7 @@ function vendor_comp_score_assessment_fix()
     }
 
   } catch (\Exception $e) {
-    $arr_return=['success'=>false,"msg"=>"Error Occured$e","data"=>(string)$e]; return $arr_return;
+    $arr_return=['success'=>false,"msg"=>"Error Occured$e","data"=>$e->getMessage()]; return $arr_return;
   }
 }
 

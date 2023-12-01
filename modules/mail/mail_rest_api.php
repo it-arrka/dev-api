@@ -52,7 +52,7 @@ function SendMailHandler($funcCallType){
                 break;
       }
     }catch(Exception $e){
-      catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+      catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
     }
 }
 
@@ -103,7 +103,7 @@ function send_mail_with_attachment($mailto_arr,$mailcc_arr,$subject,$mailbody,$f
             $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'mail sent'] ];
             return $arr_return;
         } catch (Exception $e) {
-            return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+            return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
         }
     }else{
         $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'mail sent'] ];
@@ -154,7 +154,7 @@ function send_mail($mailto_arr,$mailcc_arr,$subject,$mailbody,$key='')
             $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'mail sent'] ];
             return $arr_return;
         } catch (Exception $e) {
-            return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+            return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
         }
     }else{
         $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'mail sent'] ];

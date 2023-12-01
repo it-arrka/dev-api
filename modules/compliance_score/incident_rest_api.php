@@ -103,7 +103,7 @@ function update_compliance_score_for_incident_for_all_company(){
   echo "<hr>********************************SUCCESSFUL";
       
    } catch (\Exception $e) {
-    echo "<hr>********************************Error\n".(string)$e;
+    echo "<hr>********************************Error\n".$e->getMessage();
    }
  }
 
@@ -179,8 +179,8 @@ function write_to_compliance_score_incident($incidentid,$actionrefid,$sequence,$
     $arr_return=["success"=>true,"msg"=>"Succes","data"=>""];
     return $arr_return;
   } catch (\Exception $e) {
-    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
     return $arr_return;
   }
 }
@@ -203,8 +203,8 @@ function read_from_compliance_score_incident($companycode,$email,$role,$custcode
       return $arr_return;
        
     } catch (\Exception $e) {
-      errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_incident","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-      $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+      errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_incident","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+      $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
       return $arr_return;
     }
   }
@@ -227,8 +227,8 @@ function read_from_compliance_score_incident($companycode,$email,$role,$custcode
         return $arr_return;
          
       } catch (\Exception $e) {
-        errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_incident","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-        $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+        errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_incident","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+        $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
         return $arr_return;
       }
   }
@@ -315,8 +315,8 @@ function update_compliance_score_for_incident($companycode,$email,$role,$custcod
      return $arr_return;
       
    } catch (\Exception $e) {
-     errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_incident","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-     $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+     errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_incident","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+     $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
      return $arr_return;
    }
  }
@@ -416,8 +416,8 @@ function update_compliance_score_for_incident($companycode,$email,$role,$custcod
    return $arr_return;
     
  } catch (\Exception $e) {
-   errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_incident","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-   $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+   errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_incident","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+   $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
    return $arr_return;
  }
 }
@@ -462,7 +462,7 @@ function update_compliance_score_for_incident($companycode,$email,$role,$custcod
      $arr_return=["code"=>200, "success"=>true, "data"=>['comp_score'=>$comp_score]];
      return $arr_return;
    } catch (\Exception $e) {
-     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
    }
  }
  

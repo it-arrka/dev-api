@@ -6,7 +6,7 @@ function GetCompanyHandler($funcCallType){
     switch($funcCallType){
       case "companyList":
         if(isset($GLOBALS['email'])){
-          $output = get_company_list($GLOBALS['email']);
+          $output = get_company_list($GLOBALS['email'], $GLOBALS['companycode']);
           if($output['success']){
             commonSuccessResponse($output['code'],$output['data']);
           }else{
@@ -93,7 +93,7 @@ function GetCompanyHandler($funcCallType){
           break;
     }
   }catch(Exception $e){
-    catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+    catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
   }
 }
 
@@ -175,11 +175,11 @@ function get_last_active_customer_details($email){
       return $arr_return;
 
     }catch(Exception $e){
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 
-function get_company_list($email)
+function get_company_list($email, $activeCompanycode="")
 {
   try {
     global $session;
@@ -205,9 +205,14 @@ function get_company_list($email)
                 $row['companycode']
             )));
             if($result_comp->count()>0){
+              $active = false;
+              if($activeCompanycode == $row['companycode']){
+                $active = true;
+              }
                 $arr_company[] = [
                     "companycode" => $row['companycode'],
-                    "companyname" => $result_comp[0]['companyname']
+                    "companyname" => $result_comp[0]['companyname'],
+                    "active" => $active
                 ];
             }
             $existCompData[$row['companycode']]=true;
@@ -217,7 +222,7 @@ function get_company_list($email)
     $arr_return=["code"=>200, "success"=>true, "data"=>$arr_company];
     return $arr_return;
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -296,7 +301,7 @@ function change_company_for_user($change_companycode, $email, $access_token)
     return $arr_return;
 
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -315,7 +320,7 @@ function get_address_list($companycode){
     return $arr_return;
 
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -349,7 +354,7 @@ function get_address_list_full($companycode){
     return $arr_return;
 
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 

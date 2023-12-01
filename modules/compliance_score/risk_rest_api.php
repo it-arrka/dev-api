@@ -143,8 +143,8 @@ function write_to_compliance_score_risk($riskid,$actionrefid,$sequence,$arrkacom
     $arr_return=["success"=>true,"msg"=>"Succes","data"=>""];
     return $arr_return;
   } catch (\Exception $e) {
-    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
     return $arr_return;
   }
 }
@@ -167,8 +167,8 @@ function read_from_compliance_score_risk($companycode,$email,$role,$custcode){
       return $arr_return;
        
     } catch (\Exception $e) {
-      errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:compliance_score_risk","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-      $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+      errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:compliance_score_risk","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+      $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
       return $arr_return;
     }
   }
@@ -191,8 +191,8 @@ function read_from_compliance_score_risk($companycode,$email,$role,$custcode){
         return $arr_return;
          
       } catch (\Exception $e) {
-        errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:compliance_score_risk","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-        $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+        errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:compliance_score_risk","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+        $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
         return $arr_return;
       }
   }
@@ -253,8 +253,8 @@ function update_compliance_score_for_risk($companycode,$email,$role,$custcode){
      return $arr_return;
       
    } catch (\Exception $e) {
-     errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_risk","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-     $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+     errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_risk","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+     $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
      return $arr_return;
    }
  }
@@ -322,8 +322,8 @@ function update_compliance_score_for_risk_by_riskid($risk_arr,$companycode,$emai
      return $arr_return;
       
    } catch (\Exception $e) {
-     errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_risk","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-     $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+     errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:update_compliance_score_for_risk","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+     $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
      return $arr_return;
    }
  }

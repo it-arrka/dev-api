@@ -306,7 +306,7 @@ function get_company_logo($companycode)
     $arr_return=["code"=>200, "success"=>true, "data"=>['src'=>$src_link, 'clientlogoref'=>$clientlogoref]];
     return $arr_return;
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -388,7 +388,7 @@ function get_page_access_by_pageid($companycode, $email, $role, $type, $pageid)
       return $arr_return;
     }
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -417,6 +417,26 @@ function getDateDifference($date2Seconds, $date1Seconds){
   return $diffHours;
 }
 
+function date_difference($date_old,$date_new)
+{
+    // Declare and define two dates
+  $date1 = strtotime($date_old);
+  $date2 = strtotime($date_new);
+  // Formulate the Difference between two dates
+  $diff = abs($date2 - $date1);
+  $years = floor($diff / (365*60*60*24));
+  $months = floor(($diff - $years * 365*60*60*24) / (30*60*60*24));
+
+  $days = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24)/ (60*60*24));
+
+  $hours = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24 - $days*60*60*24) / (60*60));
+
+  $minutes = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24 - $days*60*60*24 - $hours*60*60)/ 60);
+
+  $seconds = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24 - $days*60*60*24 - $hours*60*60 - $minutes*60));
+  return array("years"=>$years,"months"=>$months,"days"=>$days,"hours"=>$hours,"minutes"=>$minutes,"seconds"=>$seconds);
+}
+
 /**
  * Get name from email
  * This function will return name if avaialble else will return empty string
@@ -441,6 +461,29 @@ function get_name_from_email($email){
   } catch (\Exception $e) {
     //In case of error.. return ""
     return "";
+  }
+}
+
+function get_name_and_email_from_custcode($custcode){
+  try {
+    global $session;
+
+    if($custcode == '') { return [ 'name' => '', 'email' => '' ]; exit(); }
+
+    $result= $session->execute($session->prepare("SELECT custfname,custlname,custemailaddress FROM customer WHERE custcode=? ALLOW FILTERING"),array('arguments'=>array(
+      $custcode
+    )));
+
+    //get name
+    $name = ""; $email = "";
+    if($result->count()>0){
+      $name = $result[0]['custfname'] ." ". $result[0]['custlname'];
+      $email = $result[0]['custemailaddress'];
+    }
+    return [ 'name' => $name, 'email' => $email ];
+  } catch (\Exception $e) {
+    //In case of error.. return ""
+    return [ 'name' => '', 'email' => '' ];
   }
 }
 
@@ -577,7 +620,7 @@ function notice_write($notice_module_id,$companycode,$notice_from,$notice_from_r
       $arr_return=["code"=>200, "success"=>true, "data"=>[]];
       return $arr_return;
     } catch (\Exception $e) {
-      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
     }
 }
 
@@ -606,7 +649,7 @@ function notice_update($transactionid,$companycode,$notice_to,$notice_to_role,$n
     $arr_return=["code"=>200, "success"=>true, "data"=>[]];
     return $arr_return;
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -849,7 +892,7 @@ function get_department_list($companycode)
     $arr_return=["code"=>200, "success"=>true, "data"=>$arr_d_unique];
     return $arr_return;
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -942,7 +985,7 @@ function insert_data_into_client_product_subscription($product,$companycode,$exp
         return ["code"=>200, "success"=>true, "data"=>['message' => 'success'] ];
 
    } catch (\Exception $e) {
-     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
    }
  }
 
@@ -1047,5 +1090,238 @@ function insert_data_into_client_product_subscription($product,$companycode,$exp
    }
  }
 
+ /**
+  * @param base64 string $str
+  * Return true if valid base64 else false
+  */
+ function isValidBase64($str) {
+  $decoded = base64_decode($str, true);
+
+  // Check if base64_decode returns false or if the decoded length doesn't match the input length
+  return $decoded;
+}
+
+function isPasswordValid($password) {
+  // Check for at least 8 characters
+  if (strlen($password) < 8) {
+      return false;
+  }
+
+  // Check for at least one uppercase letter
+  if (!preg_match('/[A-Z]/', $password)) {
+      return false;
+  }
+
+  // Check for at least one lowercase letter
+  if (!preg_match('/[a-z]/', $password)) {
+      return false;
+  }
+
+  // Check for at least one digit
+  if (!preg_match('/\d/', $password)) {
+      return false;
+  }
+
+  // Check for at least one special character
+  if (!preg_match('/[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]/', $password)) {
+      return false;
+  }
+
+  // If all criteria are met, the password is valid
+  return true;
+}
+
+function isDateInRange($dateString, $minDate = null, $maxDate = null) {
+  // Check if the date string is valid
+  $inputDate = DateTime::createFromFormat('Y-m-d', $dateString);
+  if ($inputDate === false) {
+      return false; // Invalid date string
+  }
+
+  // Check if the date falls within the specified range
+  if (($minDate === null || $inputDate >= new DateTime($minDate)) &&
+      ($maxDate === null || $inputDate <= new DateTime($maxDate))) {
+      return true;
+  }
+
+  return false;
+}
+
+
+function get_other_status_for_gap_entries($gscore)
+ {
+   $maturity_level="Not Applicable"; $score_status="Not Applicable";
+   switch ($gscore) {
+     case '0':
+       $maturity_level= "Non Compliant";
+       $score_status="Non Compliant";
+       break;
+     case '1':
+       $maturity_level= "Defined";
+       $score_status="Compliant";
+       break;
+     case '2':
+       $maturity_level= "Implemented";
+       $score_status="Compliant";
+       break;
+     case '3':
+       $maturity_level= "Managed";
+       $score_status="Compliant";
+       break;
+     default:
+       $maturity_level= "Not Applicable";
+       $score_status="Not Applicable";
+       break;
+   }
+   return ['maturity_level'=>$maturity_level,'score_status'=>$score_status];
+ }
+
+function rolematrix_for_assessment($type)
+   {
+     global $session;
+     $arr =array();
+       try {
+         switch ($type) {
+           case 'security':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE security=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'privacy':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE privacy=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'SEBI':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE sebi=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'RBIUCB':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE rbi=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'gdpr':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE gdpr=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'bahrain':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE bahrain=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'india':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE india=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'vendor':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE vendor=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'technical risk':
+             $result= $session->execute($session->prepare("SELECT rolename FROM rolematrix WHERE techriskstatus=? ALLOW FILTERING"),array('arguments'=>array("1"))); foreach ($result as $row) { array_push($arr,$row['rolename']); }
+             break;
+
+           default:
+             $col_name=strtolower($type);
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status WHERE $col_name=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+         }
+         return array_unique($arr);
+
+       } catch (\Exception $e) {
+         return array();
+       }
+   }
+
+   function rolematrix_for_assessment_ia($type)
+   {
+     global $session;
+     $arr =array();
+       try {
+         switch ($type) {
+           case 'security':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE security=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'privacy':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE privacy=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'SEBI':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE sebi=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'RBIUCB':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE rbi=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'gdpr':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE gdpr=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'bahrain':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE bahrain=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           case 'india':
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE india=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+           default:
+             $col_name=strtolower($type);
+             $result= $session->execute($session->prepare("SELECT role FROM assessment_role_status_ia WHERE $col_name=? ALLOW FILTERING"),array('arguments'=>array("1")));
+             foreach ($result as $row) { array_push($arr,$row['role']); }
+             break;
+         }
+         return array_unique($arr);
+
+       } catch (\Exception $e) {
+          return array();
+       }
+   }
+
+   function get_law_tid_by_ldispname($ldispname)
+   {
+     try {
+       global $session;
+       $law_tid="";
+       $result_lawtid= $session->execute($session->prepare('SELECT id FROM lawmap_content_txn WHERE ldispname=? ALLOW FILTERING'),array('arguments'=>array($ldispname)));
+       if ($result_lawtid->count()>0) {
+         $law_tid=(string)$result_lawtid[0]['id'];
+       }
+       return $law_tid;
+     } catch (\Exception $e) {
+       return "";
+     }
+   }
+
+   //get_date_by_timestamp
+   function get_date_by_timestamp($timestamp, $format="dd-mm-YYYY")
+   {
+     try {
+       global $session;
+       $timestamp_string = (string)$timestamp;
+       if($timestamp_string == "") { return ""; }
+
+       $timestamp_int = (int)$timestamp_string/1000;
+
+       $date = date($format, $timestamp_int);
+       return $date;
+     } catch (\Exception $e) {
+       return "";
+     }
+   }
+
+   function get_vendor_name_by_vendor_id($vendorid)
+   {
+     try {
+       global $session;
+       if($vendorid == "") { return ""; }
+       $result_vendor= $session->execute($session->prepare('SELECT vccustname FROM vendorcontract WHERE vcid=?'),array('arguments'=>array(new \Cassandra\Uuid($vendorid))));
+       $vendor = "";
+       if($result_vendor->count() >0){ $vendor = $result_vendor[0]['vccustname']; }
+       return $vendor;
+     } catch (\Exception $e) {
+       return "";
+     }
+   }
 
 ?>

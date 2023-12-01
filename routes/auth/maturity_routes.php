@@ -4,7 +4,7 @@
 require_once $_ENV['HOME_PATH'].'/modules/maturity_rest_api.php';
 require_once $_ENV['HOME_PATH'].'/modules/maturity_rest_api_old.php';
 require_once $_ENV['HOME_PATH'].'/modules/acf/acf_common_api.php';
-// require_once $_ENV['HOME_PATH'].'/modules/user_rest_api.php';
+require_once $_ENV['HOME_PATH'].'/modules/actions/action_rest_api.php';
 
 switch($route_function_trigger_params){
     case 'assessmentList':
@@ -15,6 +15,10 @@ switch($route_function_trigger_params){
         allowedRequestTypes("GET");
         GetMaturityHandler("questionList");   
         break;
+    case 'report':
+        allowedRequestTypes("GET");
+        GetMaturityHandler("report");   
+        break;
     case 'initiate':
         allowedRequestTypes("POST");
         GetMaturityHandler("initiate");   
@@ -23,8 +27,12 @@ switch($route_function_trigger_params){
         allowedRequestTypes("POST");
         GetMaturityHandler("initiateAssessment");   
         break;
+    case 'saveAssessment':
+        allowedRequestTypes("POST");
+        GetMaturityHandler("saveAssessment");   
+        break;
     case 'roleUserListByLaw':
-        allowedRequestTypes("GET");
+        allowedRequestTypes("POST");
         GetMaturityHandler("roleUserListByLaw");   
         break;
     default:

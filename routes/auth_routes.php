@@ -67,6 +67,9 @@ switch($route_part_2){
     case "maturity":
         require_once 'auth/maturity_routes.php';
         break;
+    case "action":
+        require_once 'auth/action_routes.php';
+        break;
     default:
          http_response_code(404); 
          echo json_encode(["message"=>"404 Not Found"]);

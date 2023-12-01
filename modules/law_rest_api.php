@@ -21,7 +21,7 @@ function GetLawHandler($funcCallType){
         break;
       }
     }catch(Exception $e){
-      catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+      catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
     }
   }
 
@@ -55,16 +55,19 @@ function get_applicable_law_in_company($companycode, $activeLaw)
         //get law_tid
         $law_tid="";
         $law_version="";
-        $result_law_tid= $session->execute($session->prepare("SELECT id,version_overall FROM lawmap_content_txn WHERE ldispname=? ALLOW FILTERING"),array('arguments'=>array($row_law['law'])));
+        $law_desc="";
+        $result_law_tid= $session->execute($session->prepare("SELECT id,version_overall,lname FROM lawmap_content_txn WHERE ldispname=? ALLOW FILTERING"),array('arguments'=>array($row_law['law'])));
         if ($result_law_tid->count()>0) {
           $law_tid=(string)$result_law_tid[0]['id'];
           $law_version=$result_law_tid[0]['version_overall'];
+          $law_desc =$result_law_tid[0]['lname'];
         }
 
         $row_law['law_tid']=$law_tid;
         $row_law['law_version']=$law_version;
         $row_law['dispname']=$dispname;
         $row_law['key']=$key;
+        $row_law['law_desc']=$law_desc;
         $law[]=$row_law;
       }
     }
@@ -79,7 +82,7 @@ function get_applicable_law_in_company($companycode, $activeLaw)
     $arr_return=["code"=>200, "success"=>true, "data"=>$law];
     return $arr_return;
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 

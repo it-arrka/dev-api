@@ -228,7 +228,7 @@ function update_compliance_score_for_all_scheduler(){
    return $arr_return;
     
  } catch (\Exception $e) {
-   $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+   $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
    return $arr_return;
  }
 }
@@ -323,8 +323,8 @@ function write_to_compliance_score_scheduler($activityid,$sequence,$arrkacompref
     $arr_return=["success"=>true,"msg"=>"Succes","data"=>""];
     return $arr_return;
   } catch (\Exception $e) {
-    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
     return $arr_return;
   }
 }
@@ -354,8 +354,8 @@ function read_from_compliance_score_scheduler($notebookid,$companycode,$email,$r
     return $arr_return;
      
   } catch (\Exception $e) {
-    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-    $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+    $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
     return $arr_return;
   }
 }
@@ -385,8 +385,8 @@ function read_from_compliance_score_scheduler_by_activity($activityid,$notebooki
     return $arr_return;
      
   } catch (\Exception $e) {
-    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-    $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+    $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
     return $arr_return;
   }
 }
@@ -451,8 +451,8 @@ function update_compliance_score_for_scheduler($transactionid,$notebookid,$compa
     return $arr_return;
      
   } catch (\Exception $e) {
-    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+    errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+    $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
     return $arr_return;
   }
 }
@@ -522,8 +522,8 @@ function update_compliance_score_for_scheduler_for_activity($activity_arr,$trans
    return $arr_return;
     
  } catch (\Exception $e) {
-   errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",(string)$e,"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
-   $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>(string)$e];
+   errorLog($_SERVER['REMOTE_ADDR'],"ER003","database error:read_from_compliance_score_scheduler","1",$e->getMessage(),"",$_SERVER['PHP_SELF'],$_SERVER['HTTP_REFERER'],session_id(),http_response_code(),$role,$_SERVER['HTTP_USER_AGENT'],$email,$custcode,$companycode);
+   $arr_return=["success"=>false,"msg"=>"Error Occured $e","data"=>$e->getMessage()];
    return $arr_return;
  }
 }

@@ -8,7 +8,16 @@ require_once $_ENV['HOME_PATH'].'/modules/mail/mail_rest_api.php';
 
 switch($route_function_trigger_params){
     case 'login':
-        UserLoginHandler();   
+        UserLoginHandler("login");   
+        break;
+    case 'forgotPassword':
+        UserLoginHandler("forgotPassword");   
+        break;
+    case 'forgotPasswordLinkVerify':
+        UserLoginHandler("forgotPasswordLinkVerify");   
+        break;
+    case 'forgotPasswordSetPassword':
+        UserLoginHandler("forgotPasswordSetPassword");   
         break;
     case 'promocodeDetails':
         UserSignupHandler('promocodeDetails');   

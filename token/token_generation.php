@@ -76,7 +76,7 @@ function generate_jwt_tokens($email){
         $arr_return=["code"=>200, "success"=>true, "data"=>$data];
         return $arr_return;
     }catch(Exception $e){
-        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
+        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage()];
         return $arr_return;
      }
 }
@@ -186,7 +186,7 @@ function generate_and_save_tokens_for_user($email){
             return $table_insert;
           }
     }catch(Exception $e){
-        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
+        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage()];
         return $arr_return;
     }
 }
@@ -221,7 +221,7 @@ function generate_token_by_refresh_token($refresh_token){
         $output = generate_and_save_tokens_for_user($email);
         return $output;
     }catch(Exception $e){
-        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>(string)$e];
+        $arr_return=["code"=>500, "success"=>false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage()];
         return $arr_return;
     }
 }

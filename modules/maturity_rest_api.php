@@ -21,6 +21,23 @@ function GetMaturityHandler($funcCallType){
           }
           break;
 
+        case "report":
+          $page=1; $limit=10; $tid="";
+          if(isset($_GET["page"])){ $page=(int)$_GET["page"]; } 
+          if(isset($_GET["limit"])){ $limit=$_GET["limit"]; } 
+          if(isset($_GET["tid"])){ $tid=$_GET["tid"]; } 
+          if(isset($GLOBALS['companycode']) && isset($_GET['tid'])){
+            $output = get_maturity_report_call($GLOBALS['companycode'], $tid,  $limit, $page);
+            if($output['success']){
+              commonSuccessResponse($output['code'],$output['data']);
+            }else{
+              catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+            }
+          }else{
+            catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+          }
+          break;
+
         case "questionList":
           $page=1; $limit = "ALL";
           if(isset($_GET["page"])){ $page=(int)$_GET["page"]; } 
@@ -92,6 +109,26 @@ function GetMaturityHandler($funcCallType){
           }
           break;
 
+        case "saveAssessment":
+          $jsonString = file_get_contents('php://input');
+          if($jsonString == ""){ catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit(); }
+          $json = json_decode($jsonString,true);
+          if(!is_array($json)){
+            catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
+          }
+          
+          if(isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($json['assessmentid']) ){
+            $output = save_assessment($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['assessmentid']);
+            if($output['success']){
+              commonSuccessResponse($output['code'],$output['data']);
+            }else{
+              catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+            }
+          }else{
+            catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+          }
+          break;
+
           default:
             catchErrorHandler(400,[ "message"=>E_INV_REQ, "error"=>"" ]);
             break;
@@ -101,6 +138,379 @@ function GetMaturityHandler($funcCallType){
     }
 }
 
+function get_maturity_report_call($companycode, $txn_id, $limit, $page){
+  try{
+    global $session;
+    if($txn_id == ""){
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid company" ]; exit();
+    }
+
+    //validate transaction id
+    $result_txn= $session->execute($session->prepare("SELECT acf_flag,version,transactiontype,createdate,transactionname,vendorid FROM transactions WHERE transactionid=?"),array('arguments'=>array(new \Cassandra\Uuid($txn_id))));
+    if($result_txn->count() == 0){
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid transaction" ]; exit();
+    }
+
+    $acf_flag = $result_txn[0]['acf_flag'];
+    $version = $result_txn[0]['version'];
+    $createdate = get_date_by_timestamp($result_txn[0]['createdate'], 'd-m-y');
+    $assessment_name = $result_txn[0]['transactionname'];
+    $vendorid = $result_txn[0]['vendorid'];
+    $vendorname = "";
+    if($vendorid != ""){
+      $assessment_name_explode = explode("|", $assessment_name);
+      $assessment_name = $assessment_name_explode[0];
+      $vendorname = get_vendor_name_by_vendor_id($vendorid);
+    }
+
+    $txn_details = [
+      "assessment_name" => $assessment_name,
+      "createdate" => $createdate,
+      "vendorname" => $vendorname,
+      "law" => $result_txn[0]['transactiontype']
+    ];
+
+    if($acf_flag == "1"){
+      $get_maturity_report_acf = get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page);
+      if($get_maturity_report_acf['success']){
+        $get_maturity_report_acf['data']['txn_details'] = $txn_details;
+      }
+      return $get_maturity_report_acf; exit();
+    }else{
+      $get_maturity_report_old = get_maturity_report_old($companycode, $txn_id, "maturity", $result_txn[0]['transactiontype'], $limit, $page);
+      if($get_maturity_report_old['success']){
+        $get_maturity_report_old['data']['txn_details'] = $txn_details;
+      }
+      return $get_maturity_report_old; exit();
+    }
+
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+  }
+}
+
+//get_maturity_report
+function get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page)
+{
+  try {
+    global $session; 
+    $arr_txn = []; $gap_hold_array=[];
+    $result_txn= $session->execute($session->prepare("SELECT gapanalysisid,sorting_order,gquestionno,gcustcode FROM gap_analysis_acf WHERE gtransactionid=? AND version=?"),array('arguments'=>array($txn_id, $version)));
+    foreach ($result_txn as $row_txn) {
+      $row_txn['gapanalysisid']=(string)$row_txn['gapanalysisid'];
+      $gquestionno_act=$row_txn['gquestionno'].$row_txn['gcustcode'];
+
+      if($gquestionno_act==''){ $gquestionno_act=$row_txn['gapanalysisid']; }
+      if (isset($gap_hold_array[$gquestionno_act])) {
+        $row_txn['gapanalysisid']=$gap_hold_array[$gquestionno_act];
+      }else {
+        $gap_hold_array[$gquestionno_act]=$row_txn['gapanalysisid'];
+      }
+      $arr_txn[$row_txn['gapanalysisid']] = $row_txn['sorting_order'];
+    }
+
+    asort($arr_txn);
+    $arr_final_txn =[];
+    //timestamp
+    if(strtoupper($limit) == "ALL"){
+      $arr_final_txn = $arr_txn;
+      $total_index=0;
+      $page = 0;
+    }else{
+      $limit = (int)$limit;
+      if($limit<1){ $limit=1; } if($page<1){ $page=1; }
+      $page = $page - 1; 
+      $array_chunk=array_chunk($arr_txn,$limit,true);
+      $total_index=count($array_chunk);
+      if(isset($array_chunk[$page])){
+          $arr_final_txn=$array_chunk[$page];
+      }
+    }
+
+    $gapanalysis_data_array=[];  
+    
+    foreach ($arr_final_txn as $gapanalysisid => $sorting_sequence) {
+      $result= $session->execute($session->prepare("SELECT * FROM gap_analysis_acf WHERE gtransactionid=? AND version=? AND gapanalysisid=?"),array('arguments'=>array($txn_id, $version, new \Cassandra\Uuid($gapanalysisid))));
+      foreach ($result as $row) {
+        $creator=$row['creator'];
+        //Action data
+        $management_response = get_action_mgmt_response($txn_id, $gapanalysisid, $companycode);
+        
+        $maturity_level=$row['maturity_level'];
+        $score_status=$row['score_status'];
+        $updated_status=$row['updated_status'];
+        $updated_score=$row['updated_score'];
+
+        $doc_id=explode("|",$row['gdocid']); $doc_name=explode("|",$row['gdocname']); array_shift($doc_id); array_shift($doc_name);
+        if($row['remark'] == ""){ $row['remark']=""; }
+        //Find get_law_arr for the questionno
+        $gapanalysis_data_array[]=[
+          'txn_id' =>$txn_id,
+          'creator'=>$creator,
+          'gquestionno' =>$row['gquestionno'],
+          'gdocid' =>$doc_id,
+          'gdocname' =>$doc_name,
+          'gquestion' =>$row['gquestion'],
+          'gresponse' =>$row['gresponse'],
+          'gcustcode' =>$row['gcustcode'],
+          'grolecreator' =>$row['grolecreator'],
+          'gscore' =>$row['gscore'],
+          'gtestid' =>$row['gtestid'],
+          'gtesttype' =>$row['gtesttype'],
+          'validate_remark' =>$row['validate_remark'],
+          'gapanalysisid' =>$gapanalysisid,
+          'remark' =>$row['remark'],
+          'maturity_level'=>$maturity_level,
+          'score_status'=>$score_status,
+          'updated_status'=>$updated_status,
+          'updated_score'=>$updated_score,
+          'gcontroldesc'=>$row['gcontroldesc'],
+          'gcontrolno' =>$row['gcontrolno'],
+          'sorting_order'=>$sorting_sequence,
+          'gdomainno'=>$row['gdomainno'],
+          'gdomain'=>$row['gdomain'],
+          'gcontrolobjno'=>$row['gcontrolobjno'],
+          'gcontrolobjdesc'=>$row['gcontrolobjdesc'],
+          "management_response"=>$management_response
+        ];
+    }
+  }
+
+  $final = [
+    "limit" => $limit,
+    "page" => $page+1,
+    "pagination" => $total_index,
+    "total" => count($arr_txn),
+    "data" => $gapanalysis_data_array
+  ];
+
+  $arr_return=["code"=>200, "success"=>true, "data"=>$final ];
+  return $arr_return;
+
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+  }
+}
+
+function get_maturity_report_old($companycode, $txn_id, $type, $lawInput, $limit, $page){
+  try {
+    global $session;     
+    $gapanalysis_data_array=array(); 
+
+    $controls_in_rep=array();
+    $result= $session->execute($session->prepare("SELECT * FROM gap_analysis WHERE gtransactionid=? ALLOW FILTERING"),array('arguments'=>array($txn_id)));
+    foreach ($result as $row) {
+      if($row['remark'] == ""){ $row['remark']=""; }
+
+      $management_response=get_action_mgmt_response((string)$txn_id,(string)$row['gapanalysisid'],$companycode);
+
+      $creator_arr=get_name_and_email_from_custcode($row['gcustcode']);
+      $creator = $creator_arr['name'];
+
+      if (strpos($row['gtesttype'], '_ia') !== false) {
+        switch ($row['gresponse']) {
+          case 'Yes':
+            $row['gscore']='1';
+            break;
+          case 'No':
+            $row['gscore']='0';
+            break;
+          default:
+            $row['gscore']='NA';
+            break;
+        }
+      }
+
+      $maturity_level=""; $score_status="";
+      switch ($row['gscore']) {
+        case '0':
+          $maturity_level= "Non Compliant";
+          $score_status="Non Compliant";
+          break;
+        case '1':
+          $maturity_level= "Defined";
+          $score_status="Compliant";
+          break;
+        case '2':
+          $maturity_level= "Implemented";
+          $score_status="Compliant";
+          break;
+        case '3':
+          $maturity_level= "Managed";
+          $score_status="Compliant";
+          break;
+        default:
+          $maturity_level= "Not Applicable";
+          $score_status="Not Applicable";
+          break;
+      }
+
+      $updated_status=""; $updated_score=$row['gscore'];
+      switch ($row['gscore']) {
+        case '0':
+          $action_status=array();
+          $result_actions= $session->execute($session->prepare("SELECT action_status,validation_status FROM actions_data WHERE refid=? AND status=? ALLOW FILTERING"),array('arguments'=>array((string)$row['gapanalysisid'],"1")));
+          foreach ($result_actions as $row_actions) { if($row_actions['validation_status']=='Risk Accepted'){ $row_actions['action_status']="Risk Accepted"; }else{ array_push($action_status,$row_actions['action_status']); }  }
+          if(count($action_status)>0){ if(in_array("close",$action_status)) { if(count(array_unique($action_status))==1){ $updated_status= "Compliant"; $updated_score='1'; } else{ $updated_status= "Non Compliant"; } }
+          else{ $updated_status= "Non Compliant";} }else{ $updated_status= "Non Compliant"; }
+
+          break;
+        case '1':
+          $updated_status= "Compliant";
+          break;
+        default:
+          $updated_status= "Not Applicable";
+      }
+
+      if ($row['gscore']=='') { $row['gscore']='NA'; }
+
+      $doc_id=explode("|",$row['gdocid']); $doc_name=explode("|",$row['gdocname']); array_shift($doc_id); array_shift($doc_name);
+
+
+      //Find arrkaref for the questionno
+      if ($type=='internalAudit') {
+        $result_arf= $session->execute($session->prepare('SELECT arrkaref FROM internal_audit_master WHERE role=? AND version=? AND status=? AND ques_ref=? AND quesversion=? ALLOW FILTERING'),array('arguments'=>array($row['grolecreator'],$row['version'],"1",$row['gquestionno'],$row['quesversion'])));
+        $arrkaref_arr=explode(",",$result_arf[0]['arrkaref']);
+      }else {
+        $result_arf= $session->execute($session->prepare('SELECT qarrkaref FROM question_list WHERE qrolecreator LIKE ? AND version=? AND qstatus=? AND questionno=? AND quesversion=? ALLOW FILTERING'),array('arguments'=>array("%".$row['grolecreator']."%",$row['version'],"1",$row['gquestionno'],$row['quesversion'])));
+        if($result_arf->count()==0){
+          $result_arf= $session->execute($session->prepare('SELECT qarrkaref FROM question_list_privacy WHERE qrolecreator LIKE ? AND version=? AND qstatus=? AND questionno=? AND quesversion=? ALLOW FILTERING'),array('arguments'=>array("%".$row['grolecreator']."%",$row['version'],"1",$row['gquestionno'],$row['quesversion'])));
+        }
+        $arrkaref_arr=array($result_arf[0]['qarrkaref']);
+      }
+
+      foreach ($arrkaref_arr as $arrkaref) {
+      if($arrkaref==''){}else {
+        $result_lp= $session->execute($session->prepare('SELECT * FROM lawmap WHERE larrkaref=? AND ldispname=? AND status=? ALLOW FILTERING'),array('arguments'=>array($arrkaref,$lawInput,"1")));
+        foreach ($result_lp as $row_lp) {
+
+          array_push($controls_in_rep,$row_lp['lcontrolno']);
+
+          $gapanalysis_data_array[]=array(
+            'txn_id' =>$txn_id,
+            'creator'=>$creator,
+            'gquestionno' =>$row['gquestionno'],
+            'gdocid' =>$doc_id,
+            'gdocname' =>$doc_name,
+            'gquestion' =>$row['gquestion'],
+            'gresponse' =>$row['gresponse'],
+            'gcustcode' =>$row['gcustcode'],
+            'grolecreator' =>$row['grolecreator'],
+            'gscore' =>$row['gscore'],
+            'gtestid' =>$row['gtestid'],
+            'gtesttype' =>$row['gtesttype'],
+            'validate_remark' =>$row['validate_remark'],
+            'gapanalysisid' =>(string)$row['gapanalysisid'],
+            'remark' =>$row['remark'],
+            'maturity_level'=>$maturity_level,
+            'score_status'=>$score_status,
+            'updated_status'=>$updated_status,
+            'updated_score'=>$updated_score,
+            'sequence'=>(int)$row_lp['sorting_sequence'],
+            'gcontroldesc'=>$row_lp['lcontroldesc'],
+            'gcontrolno' =>$row_lp['lcontrolno'],
+            'sorting_in'=>$row_lp['ldomain'],
+            'gdomainno'=>$row_lp['ldomainno'],
+            'gdomain'=>$row_lp['ldomain'],
+            'gcontrolobjno'=>$row_lp['lcontrolobjno'],
+            'gcontrolobjdesc'=>$row_lp['lcontrolobjdesc'],
+            "management_response"=>$management_response
+
+          );
+        }
+      }
+    }
+
+   }
+
+   //Controls in lawmap
+   $lcontrol=array();
+   if($lawInput==''){ $lcontrol=array(); }
+   else {
+     $result_lcontrol= $session->execute($session->prepare("SELECT lcontrolno,ldesc FROM lawmap WHERE ldispname=? AND status=? ALLOW FILTERING"),array('arguments'=>array($lawInput,"1")));
+     foreach ($result_lcontrol as $row_lcontrol) { array_push($lcontrol,$row_lcontrol['lcontrolno']); }
+   }
+
+   $final_control_arr=array_diff($lcontrol,$controls_in_rep);
+
+   foreach ($final_control_arr as $value_con) {
+     $result_lcd=$session->execute($session->prepare("SELECT lcontroldesc,sorting_sequence,ldesc,ldomain,ldomainno,lcontrolobjno,lcontrolobjdesc,larrkaref FROM lawmap WHERE lcontrolno=? AND ldispname=? AND status=? ALLOW FILTERING"),array('arguments'=>array($value_con,$lawInput,"1")));
+     $sequence_final=(int)$result_lcd[0]['sorting_sequence'];
+     $ldesc_final=$result_lcd[0]['lcontroldesc'];
+     $ldomain=$result_lcd[0]['ldomain'];
+     if($ldomain==''){ $ldomain='Controls'; }
+
+     $gapanalysis_data_array[]=array(
+       'txn_id' =>$txn_id,
+       'creator'=>"",
+       'gquestionno' =>"",
+       'gcontrolno' =>$value_con,
+       'gdocid' =>"",
+       'gdocname' =>"",
+       'gquestion' =>"",
+       'gresponse' =>"",
+       'gcustcode' =>"",
+       'grolecreator' =>"",
+       'gscore' =>"",
+       'gtestid' =>"",
+       'gtesttype' =>"",
+       'validate_remark' =>"",
+       'gapanalysisid' =>"NA",
+       'remark' =>"",
+       'sorting_in'=>$ldomain,
+       'maturity_level'=>"",
+       'score_status'=>"",
+       'updated_status'=>"",
+       'updated_score'=>"",
+       'actions'=>[],
+       'sequence'=>$sequence_final,
+       'gcontroldesc'=>$ldesc_final,
+       'gdomainno'=>$result_lcd[0]['ldomainno'],
+       'gdomain'=>$result_lcd[0]['ldomain'],
+       'gcontrolobjno'=>$result_lcd[0]['lcontrolobjno'],
+       'gcontrolobjdesc'=>$result_lcd[0]['lcontrolobjdesc'],
+       "management_response"=>''
+     );
+   }
+
+  //Sort first array
+  foreach ($gapanalysis_data_array as $temp_key_for_ques => $row_for_required_ques) { $temp_price_for_ques[$temp_key_for_ques] = $row_for_required_ques["sequence"]; }
+  array_multisort($temp_price_for_ques,SORT_ASC,$gapanalysis_data_array);
+
+  $arr_final_txn =[];
+  //timestamp
+  if(strtoupper($limit) == "ALL"){
+    $arr_final_txn = $gapanalysis_data_array;
+    $total_index=count($gapanalysis_data_array);
+    $page = 0;
+  }else{
+    $limit = (int)$limit;
+    if($limit<1){ $limit=1; } if($page<1){ $page=1; }
+    $page = $page - 1; 
+    $array_chunk=array_chunk($$gapanalysis_data_array,$limit,true);
+    $total_index=count($array_chunk);
+    if(isset($array_chunk[$page])){
+      $arr_final_txn=$array_chunk[$page];
+    }
+  }
+
+  $final = [
+    "limit" => $limit,
+    "page" => $page+1,
+    "pagination" => $total_index,
+    "total" => count($gapanalysis_data_array),
+    "data" => $arr_final_txn
+  ];
+
+  $arr_return=["code"=>200, "success"=>true, "data"=>$final ];
+  return $arr_return;
+
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+  }
+}
+
+
 //get_maturity_assessment_list
 function get_maturity_assessment_list($companycode, $limit, $page, $day){
     try {
@@ -108,7 +518,7 @@ function get_maturity_assessment_list($companycode, $limit, $page, $day){
 
         if($companycode==""){
             //Bad Request Error
-            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"" ]; exit();
+            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid Company" ]; exit();
         }
 
         //timestamp
@@ -235,7 +645,7 @@ function get_maturity_assessment_list($companycode, $limit, $page, $day){
             "page" => $page+1,
             "pagination" => $total_index,
             "total_maturity" => $total_maturity,
-            "incidents" => $arr
+            "assessments" => $arr
           ];
     
           $arr_return=["code"=>200, "success"=>true, "data"=>$final_data ];
@@ -615,9 +1025,9 @@ function assessmentstatus_write($companycode, $email, $role, $transactionid, $re
       $acf_flag=$row_txn_chk['acf_flag'];
       $data['type']=$row_txn_chk['type']."_ia";
       $lawSel=$row_txn_chk['type'];
-      if ($acf_flag=="1") {
-        $data['type']=$lawSel;
-      }
+      if ($acf_flag=="1") { $data['type']=$lawSel; }
+      $data['vendor'] = "";
+      $data['createdate'] = get_date_by_timestamp($row_txn_chk['createdate'], "d-m-Y");
     }
   }else {
     //For Maturity
@@ -632,6 +1042,11 @@ function assessmentstatus_write($companycode, $email, $role, $transactionid, $re
       $version_to_txn=$row_txn_chk['version'];
       $assessment_type_alt=$row_txn_chk['transactiontype_alt'];
       $acf_flag=$row_txn_chk['acf_flag'];
+      $data['createdate'] = get_date_by_timestamp($row_txn_chk['createdate'], "d-m-Y");
+      $data['vendor'] = "";
+      if($row_txn_chk['vendorid'] !==""){
+        $data['vendor'] = get_vendor_name_by_vendor_id($row_txn_chk['vendorid']);
+      }
     }
   }
 
@@ -705,13 +1120,13 @@ function assessmentstatus_write($companycode, $email, $role, $transactionid, $re
       )));
 
       if ($acf_flag=="1") {
-        load_question_to_response_acf($companycode,$custcode,$email,$transactionid,$type_of_txn_table,$lawSel,$role,$testid,$version_to_txn);
+        load_question_to_response_acf($companycode,$custcode,$email,$transactionid,$type_of_txn_table,$lawSel,$role,$testid,$version_to_txn,$data['testname'],$data['createdate'],$data['vendor']);
       }else {
-        load_question_to_response($companycode,$custcode,$email,$transactionid,$data['type'],$role,$testid,$testid_to_fetch_question,$version_to_txn);
+        load_question_to_response($companycode,$custcode,$email,$transactionid,$data['type'],$role,$testid,$testid_to_fetch_question,$version_to_txn,$data['testname'],$data['createdate'],$data['vendor']);
       }
     }else {
      if ($data['type']=='privacy_notice') {
-       $arr_return=["code"=>200, "success"=>true, "data"=>['message' => "success", "testid" => base64_encode($testid)] ];
+       $arr_return=["code"=>200, "success"=>true, "data"=>['message' => "success", "assessment_name" => $data['testname'], "createdate" => $data['createdate'], "testid" => base64_encode($testid)] ];
        return $arr_return;
      }else {
        $ccheck = check_for_question_in_assessment($companycode, $email, $role, $transactionid, $data,$assessmentversion,$testid,$acf_flag);
@@ -744,7 +1159,7 @@ function assessmentstatus_write($companycode, $email, $role, $transactionid, $re
  * @param string $testid
  * @param string $version_to_txn
  */
-function load_question_to_response_acf($companycode,$custcode,$email,$transactionid,$type_of_txn_table,$type,$role,$testid,$version_to_txn)
+function load_question_to_response_acf($companycode,$custcode,$email,$transactionid,$type_of_txn_table,$type,$role,$testid,$version_to_txn,$testname,$createdate,$vendor)
 {
   //Load question by ACF
   if ($type_of_txn_table=='transactions') {
@@ -754,7 +1169,7 @@ function load_question_to_response_acf($companycode,$custcode,$email,$transactio
       return $load_assessment_question_by_acf; exit(); 
     }
 
-    $arr_return=["code"=>200, "success"=>true, "data"=>['message' => "success", "testid" => base64_encode($testid)] ];
+    $arr_return=["code"=>200, "success"=>true, "data"=>['message' => "success", "assessment_name" => $testname, "createdate" => $createdate, "vendor" =>$vendor, "testid" => base64_encode($testid)] ];
     return $arr_return;
   }else{
     //$type_of_txn_table = internal
@@ -762,7 +1177,7 @@ function load_question_to_response_acf($companycode,$custcode,$email,$transactio
     if (!$load_assessment_question_by_acf['success']) { 
       return $load_assessment_question_by_acf; exit(); 
     }
-    $arr_return=["code"=>200, "success"=>true, "data"=>['message' => "success", "testid" => base64_encode($testid)] ];
+    $arr_return=["code"=>200, "success"=>true, "data"=>['message' => "success", "assessment_name" => $testname, "createdate" => $createdate, "vendor" =>$vendor, "testid" => base64_encode($testid)] ];
     return $arr_return;
   }
 }
@@ -829,7 +1244,7 @@ try{
     }
 
     if($output){
-      $arr_return=["code"=>200, "success"=>true, "reload" =>$reload, "data"=>['message' => "success", "testid" => base64_encode($testid_t_ff)] ];
+      $arr_return=["code"=>200, "success"=>true, "reload" =>$reload, "data"=>['message' => "success", "assessment_name" => $assessmentstatus_write_arr['testname'], "createdate" => $assessmentstatus_write_arr['createdate'], "vendor" =>$assessmentstatus_write_arr['vendor'], "testid" => base64_encode($testid_t_ff)] ];
       return $arr_return;
     }else{
       return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>"An unexpected error occurred." ]; 
@@ -846,6 +1261,9 @@ function get_maturity_question($assessmentid, $limit, $page)
   global $session;
   $arr =array();
   try {
+    if(!isValidBase64($assessmentid)) {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid testid" ]; exit();
+    }
     $assessmentid = base64_decode($assessmentid);
     $assessmentid = escape_input($assessmentid);
 
@@ -952,6 +1370,179 @@ function get_maturity_question($assessmentid, $limit, $page)
     return $arr_return;
   } catch (\Exception $e) {
     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+  }
+}
+
+
+function save_assessment($companycode, $email, $role, $assessmentid)
+{
+  //Change status of test
+  global $session;
+  try {
+    //validate assessment id
+    if(!isValidBase64($assessmentid)) {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid assessmentid" ]; exit();
+    }
+    $assessmentid = base64_decode($assessmentid);
+    $assessmentid = escape_input($assessmentid);
+
+    $result_testid= $session->execute($session->prepare('SELECT transactionid,custemail,role FROM assessmentstatus WHERE testid=?'),array('arguments'=>array($assessmentid)));
+    if ($result_testid->count() == 0) {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid testid" ]; exit();
+    }
+
+    $transactionid = (string)$result_testid[0]['transactionid'];
+    if($transactionid == ""){
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid maturity transaction" ]; exit();
+    }
+
+    $result_txn= $session->execute($session->prepare('SELECT acf_flag,transactiontype FROM transactions WHERE transactionid=?'),array('arguments'=>array(new \Cassandra\Uuid($transactionid))));
+    if ($result_txn->count() == 0) {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid maturity transaction" ]; exit();
+    }
+    $acf_flag= $result_txn[0]['acf_flag'];
+
+    $assessment_email = $result_testid[0]['custemail'];
+    $assessment_role = $result_testid[0]['role'];
+
+    if($assessment_email != $email || $assessment_role != $role) {
+      return ["code"=>403, "success" => false, "message"=>E_NO_PAGE_ACCESS, "error"=>"You do not have access to this assessment" ]; exit();
+    }
+
+    $custcode = get_custcode_from_email($email);
+    $name = get_name_from_email($email);
+
+    if ($acf_flag=="1") {
+      $assessment_commit_by_acf=assessment_commit_by_acf($assessmentid,$companycode,$email,$role,$custcode,$name);
+      return $assessment_commit_by_acf; exit();
+    }
+
+    $type_test=escape_input($result_txn[0]['transactiontype']);
+    $transactionid="";
+    $result_chk =$session->execute($session->prepare("SELECT * FROM assessmentstatus WHERE testid=?"),array('arguments'=>array($assessmentid)));
+    foreach ($result_chk as $chk) { if ($chk['status']=="1" || $chk['status']=='2') { 
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Already submitted by another user" ]; exit();
+    } }
+    $transactionid=(string)$result_chk[0]['transactionid'];
+    $assessment_name=(string)$result_chk[0]['testname'];
+
+    $result_from_temp_gap_for_commit=$session->execute($session->prepare('SELECT * FROM temp_gap WHERE assessmentid=? ALLOW FILTERING'),array('arguments'=>array($assessmentid)));
+
+   foreach ($result_from_temp_gap_for_commit as $row) {
+    $uuid_for_commit =new \Cassandra\Uuid(); $controlno ="controlno"; $arrkarefno="arrkarefno"; $domainno="domainno";
+
+//Fetch data from question list
+    if ($row['version']=='4' || $row['version']=='5') {}else {
+      if ($type_test=='security' || $type_test=='privacy') {
+        $result_from_ref_for_commit=$session->execute($session->prepare('SELECT armcontrolno,armarrkarefno FROM arrkarefmapping WHERE armquestionno=? ALLOW FILTERING'),array('arguments'=>array($row['questionno'])));
+        foreach ($result_from_ref_for_commit as $row_ref) { $controlno .=",".$row_ref['armcontrolno']; $arrkarefno .=",".$row_ref['armarrkarefno'];
+          $pr_controlno=explode(".",$row_ref['armcontrolno']);
+          $result_std=$session->execute($session->prepare('SELECT stdcontroldomdesc from standards where stdcontroldomainno=? ALLOW FILTERING'),array('arguments'=>array($pr_controlno[0])));
+          $domainno .="|".$result_std[0]['stdcontroldomdesc'];
+        }
+      }else {
+        $result_from_ref_for_commit=$session->execute($session->prepare('SELECT armarrkarefno FROM arrkarefmapping WHERE armquestionno=? ALLOW FILTERING'),array('arguments'=>array($row['questionno'])));
+        foreach ($result_from_ref_for_commit as $row_ref) { $arrkarefno .=",".$row_ref['armarrkarefno'];
+          $result_from_ref_for_commit=$session->execute($session->prepare('SELECT lawcontrolno,lawdomain FROM lawmaster_consolidated WHERE arrkaref LIKE ? AND law=? AND status=? ALLOW FILTERING'),array('arguments'=>array("%".$row_ref['armarrkarefno']."%",$type_test,"1")));
+          $controlno .=",".$result_from_ref_for_commit[0]['lawcontrolno']; $domainno .="|".$result_from_ref_for_commit[0]['lawdomain'];
+        }
+      }
+    }
+
+//Fetch data from temp upload
+    $result_from_question_list_for_commit=$session->execute($session->prepare('SELECT question FROM question_list WHERE questionno=? AND version=? AND quesversion=? ALLOW FILTERING'),array('arguments'=>array($row['questionno'],$row['version'],$row['quesversion'])));
+    if ($result_from_question_list_for_commit->count()==0) {
+      $result_from_question_list_for_commit=$session->execute($session->prepare('SELECT question FROM question_list_privacy WHERE questionno=? AND version=? AND quesversion=? ALLOW FILTERING'),array('arguments'=>array($row['questionno'],$row['version'],$row['quesversion'])));
+    }
+    foreach ($result_from_question_list_for_commit as $row_ques) { $question_to_update=$row_ques['question']; }
+//handle mcq
+    $mcq=''; if ($row['mcq']=='') { }else { $mcq_arr =explode("|",$row['mcq']); for ($i=1; $i <sizeof($mcq_arr) ; $i++) { $mcq .= " ".substr($mcq_arr[$i],5); } }
+
+  $gtesttype=" ";
+  $result_from_testtype=$session->execute($session->prepare('SELECT transactiontype FROM transactions WHERE transactionid=?'),array('arguments'=>array(new \Cassandra\Uuid($row['transactionid']))));
+  foreach ($result_from_testtype as $row_testtype) { $gtesttype=$row_testtype['transactiontype']; }
+
+    $query_insert = $session->prepare('INSERT INTO gap_analysis (
+          gapanalysisid,
+          gtransactionid,
+          gcustcode,
+          gquestion,
+          gresponse,
+          gdocid,
+          gquestionno,
+          gdocname,
+          grolesubmissiontimestamp,
+          garrkaref,
+          gcontrolno,
+          gtestid,
+          grolecreator,
+          gscore,
+          quesversion,
+          version,
+          createdate,
+          effectivedate,
+          gcompanycode,
+          gtesttype,
+          remark,
+          gdomain
+        )
+        values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+
+        $session->execute($query_insert,array('arguments'=>array(
+          $uuid_for_commit,
+          $row['transactionid'],
+          $custcode,
+          $question_to_update,
+          $mcq.$row['decision'].$row['textbox'],
+          $row['docid'],
+          $row['questionno'],
+          $row['docname'],
+          (string)date("d-m-Y H:m:s"),
+          $arrkarefno,
+          $controlno,
+          $assessmentid,
+          $email,
+          $row['score'],
+          $row['quesversion'],
+          $row['version'],
+          new \Cassandra\Timestamp(),
+          new \Cassandra\Timestamp(),
+          $row['companycode'],
+          $gtesttype,
+          $row['remark'],
+          $domainno
+        )));
+   }
+
+   //assessment update
+   $session->execute($session->prepare("UPDATE assessmentstatus SET status=?,modifydate=? WHERE testid=?"),array('arguments'=>array("1",new \Cassandra\Timestamp(),$assessmentid)));
+
+    //Update notice
+    notice_update($transactionid,$companycode,$email,$role,"MA01");
+
+    //Check if assessment is ready for validation
+    $email_role_status="0";
+    $result_txn=$session->execute($session->prepare('SELECT email_role_status FROM transactions WHERE transactionid=?'),array('arguments'=>array(new \Cassandra\Uuid($transactionid))));
+    $result_s= $session->execute($session->prepare("SELECT testid FROM assessmentstatus WHERE transactionid=? AND status=? ALLOW FILTERING"),array('arguments'=>array(new \Cassandra\Uuid($transactionid),"1")));
+    if ($result_txn[0]['email_role_status']=='1') {
+    $result_em_role= $session->execute($session->prepare("SELECT email FROM email_role_map_for_assessment WHERE transactionid=? ALLOW FILTERING"),array('arguments'=>array($transactionid)));
+    if ($result_em_role->count()==$result_s->count()) { $email_role_status="1"; }
+    }else { if (count(rolematrix_for_assessment($row['transactiontype']))==$result_s->count()) { $email_role_status="1"; } }
+
+    //notice create for Validation
+    if ($email_role_status=="1") {
+      //finding email for that page access
+      $email_role_array=module_assign_email_role_list("PG050","modify",$companycode);
+      $notice_link="multiple_report_show.php?tid=".$transactionid."&tname=".$assessment_name."&type=maturity&page_type=validate";
+      foreach ($email_role_array as $em_role) {
+        notice_write("MA02",$companycode,$email,$role,$notice_link,$em_role['email'],$em_role['role'],$assessment_name,$transactionid);
+      }
+    }
+    
+    $arr_return=["code"=>200, "success"=>true, "data"=>[ 'message'=>'success' ] ];
+    return $arr_return;
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e ]; 
   }
 }
 

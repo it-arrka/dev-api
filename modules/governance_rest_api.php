@@ -22,7 +22,7 @@ function GetGovernanceHandler($funcCallType){
             break;
       }
     }catch(Exception $e){
-      catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+      catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
     }
 }
   
@@ -154,7 +154,7 @@ function get_governance_steps($companycode, $email, $role, $law)
     $arr_return=["code"=>200, "success"=>true, "data"=>$output];
     return $arr_return;
   } catch (\Exception $e) {
-    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>(string)$e ]; 
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -188,7 +188,7 @@ function update_mandatory_governance_steps($companycode,$law)
     return $arr_return; exit();
 
   } catch (\Exception $e) {
-    $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>(string)$e];
+    $arr_return=["success"=>false,"msg"=>"Error Occured","data"=>$e->getMessage()];
     return $arr_return; exit();
   }
 }

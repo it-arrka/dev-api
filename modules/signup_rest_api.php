@@ -106,7 +106,7 @@ function UserSignupHandler($funcCallType){
               break;
         }
       }catch(Exception $e){
-        catchErrorHandler($output['code'], [ "message"=>"", "error"=>(string)$e ]);
+        catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
       }
   }
 
@@ -118,12 +118,12 @@ function get_promocode_details($hashcode){
         global $session;
         $hashcode = escape_input($hashcode);
         if($hashcode == ""){
-            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid hashcode" ]; exit();
+            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid hashcode" ]; exit();
         }
 
         $result_pr = $session->execute($session->prepare('SELECT * FROM promocode WHERE hashcode=? ALLOW FILTERING'), array('arguments' => array($hashcode)));
         if ($result_pr->count() == 0) {
-            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid hashcode" ]; exit();
+            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid hashcode" ]; exit();
         }
 
         $arr = [
@@ -180,7 +180,7 @@ function temp_signup_create($data)
 
     //validate law
     if(!validate_law_for_signup($law)){
-        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid law" ]; exit();
+        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid law" ]; exit();
     }
 
     $res_cemail=$session->execute($session->prepare('SELECT hashcode FROM temp_registration WHERE custemailaddress=? ALLOW FILTERING'),array('arguments'=>array($email)));
@@ -190,7 +190,7 @@ function temp_signup_create($data)
 
     //Check if email is valid
     if (!validateEmail($email)) {
-        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid email" ]; exit();
+        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid email" ]; exit();
     }
 
     //check if tnc is checked
@@ -252,12 +252,16 @@ function signup_link_verification($hashcode, $type){
         $type = escape_input($type);
 
         if($hashcode == "" || $type ==""){
-            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid hashcode & type" ]; exit();
+            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid link" ]; exit();
         }
 
         //validate type
         if ($type!="00100sp") {
-            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid type" ]; exit();
+            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid link" ]; exit();
+        }
+
+        if(!isValidBase64($hashcode)) {
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid link" ]; exit();
         }
 
         //validate hashcode
@@ -265,11 +269,11 @@ function signup_link_verification($hashcode, $type){
         $result =$session->execute($session->prepare("SELECT * FROM temp_registration WHERE hashcode=?"),array('arguments'=>array($hashcode)));
 
         if($result->count() == 0){
-            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid hashcode" ]; exit();
+            return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid link" ]; exit();
         }
         $custemail =$result[0]['custemailaddress'];
 
-		$session->execute($session->prepare('UPDATE temp_registration SET modifydate=? WHERE hashcode=?'),array('arguments'=>array(new \Cassandra\Timestamp(),$hashcode)));
+		    $session->execute($session->prepare('UPDATE temp_registration SET modifydate=? WHERE hashcode=?'),array('arguments'=>array(new \Cassandra\Timestamp(),$hashcode)));
 
         //Verify linkstatus
         if ($result[0]['linkstatus']!="1") {
@@ -277,19 +281,19 @@ function signup_link_verification($hashcode, $type){
         }
         
         $linkexpirydate_str=$result[0]['linkexpirydate'];
-		if($linkexpirydate_str==''){
+		    if($linkexpirydate_str==''){
             return ["code"=>200, "success"=>true, "data"=>["expire"=>true, "setpassword" =>false, "message"=> "Link Expired"] ]; exit();
         }
 
         $linkexpirydate=strtotime($linkexpirydate_str);
-		$nowdate=strtotime(date("d-m-Y H:i:s"));
-		if ($nowdate>$linkexpirydate) {
-            return ["code"=>200, "success"=>true, "data"=>["expire"=>true, "setpassword" =>false, "message"=> "Link Expired"] ]; exit();
+        $nowdate=strtotime(date("d-m-Y H:i:s"));
+        if ($nowdate>$linkexpirydate) {
+                return ["code"=>200, "success"=>true, "data"=>["expire"=>true, "setpassword" =>false, "message"=> "Link Expired"] ]; exit();
         }
 
         $res_cust_check=$session->execute($session->prepare('SELECT custemailaddress FROM customer WHERE custemailaddress=?'),array('arguments'=>array($custemail)));
-		if ($res_cust_check->count()==0) {
-            return ["code"=>200, "success"=>true, "data"=>["expire"=>false, "setpassword" =>true, "message"=> "Set Password"] ]; exit();
+		    if ($res_cust_check->count()==0) {
+        return ["code"=>200, "success"=>true, "data"=>["expire"=>false, "setpassword" =>true, "message"=> "Set Password"] ]; exit();
         }else{
             return ["code"=>200, "success"=>true, "data"=>["expire"=>false, "setpassword" =>false, "message"=> "Email Verified"] ]; exit();
         }
@@ -327,19 +331,27 @@ function create_company_n_customer_from_temp($data)
         return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>implode(", ",$required_keys)." value is mandatory" ]; exit();
     }
 
-    $hash = escape_input($data['hashcode']);
+    $hash = $data['hashcode'];
     $pass = escape_input($data['password']);
     $repass = escape_input($data['repassword']);
 
+    if(!isValidBase64($hash)) {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid hashcode" ]; exit();
+    }
+
     $hash = base64_decode($hash);
 
-    if ($pass!==$repass) {
+    if(!isPasswordValid($pass)){
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid password" ]; exit();
+    }
+
+    if ($pass!=$repass) {
         return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Password did not match" ]; exit();
     }
 
     $res_data=$session->execute($session->prepare('SELECT * FROM temp_registration WHERE hashcode=?'),array('arguments'=>array($hash)));
     if($res_data->count()== 0){
-        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid hashcode" ]; exit();
+        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid hashcode" ]; exit();
     }
 
     $hashcode =(string) new\Cassandra\Uuid();
@@ -502,9 +514,10 @@ function create_company_n_customer_from_temp_for_existing($data)
         return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>implode(", ",$required_keys)." value is mandatory" ]; exit();
     }
 
-    $hash = escape_input($data['hashcode']);
-    $hash = base64_decode($hash);
-
+    if(!isValidBase64($data['hashcode'])) {
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"Invalid hashcode" ]; exit();
+    }
+    $hash = base64_decode($data['hashcode']);
 
     $res_data=$session->execute($session->prepare('SELECT * FROM temp_registration WHERE hashcode=?'),array('arguments'=>array($hash)));
 
