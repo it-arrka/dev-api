@@ -97,7 +97,11 @@ function GetMaturityHandler($funcCallType){
             catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]); exit();
           }
           
-          if(isset($GLOBALS['companycode']) && isset($json['email']) && isset($json['role']) && isset($json['transactionid']) ){
+          if(isset($GLOBALS['companycode']) && isset($json['email']) && isset($json['role']) && isset($json['transactionid']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) ){
+
+            if($json['email'] == 'default'){ $json['email']=$GLOBALS['email']; }
+            if($json['role'] == 'default'){ $json['role']=$GLOBALS['role']; }
+
             $output = assessmentstatus_write($GLOBALS['companycode'], $json['email'], $json['role'], $json['transactionid']);
             if($output['success']){
               commonSuccessResponse($output['code'],$output['data']);
@@ -126,6 +130,15 @@ function GetMaturityHandler($funcCallType){
             }
           }else{
             catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+          }
+          break;
+
+        case "tempSaveResponse":
+          $output = temp_save_response($GLOBALS['companycode'], $GLOBALS['email']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
           }
           break;
 
@@ -194,10 +207,12 @@ function get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page)
 {
   try {
     global $session; 
-    $arr_txn = []; $gap_hold_array=[];
-    $result_txn= $session->execute($session->prepare("SELECT gapanalysisid,sorting_order,gquestionno,gcustcode FROM gap_analysis_acf WHERE gtransactionid=? AND version=?"),array('arguments'=>array($txn_id, $version)));
+    $arr_txn_init = []; $gap_hold_array=[];
+    $result_txn= $session->execute($session->prepare("SELECT gapanalysisid,sorting_order,gquestionno,gcustcode,gdomain,maturity_level FROM gap_analysis_acf WHERE gtransactionid=? AND version=?"),array('arguments'=>array($txn_id, $version)));
     foreach ($result_txn as $row_txn) {
+      // if($row_txn['maturity_level'] !="Not Applicable"){
       $row_txn['gapanalysisid']=(string)$row_txn['gapanalysisid'];
+      $gapanalysisid_main = $row_txn['gapanalysisid'];
       $gquestionno_act=$row_txn['gquestionno'].$row_txn['gcustcode'];
 
       if($gquestionno_act==''){ $gquestionno_act=$row_txn['gapanalysisid']; }
@@ -206,10 +221,31 @@ function get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page)
       }else {
         $gap_hold_array[$gquestionno_act]=$row_txn['gapanalysisid'];
       }
-      $arr_txn[$row_txn['gapanalysisid']] = $row_txn['sorting_order'];
+      $mgmt_response = get_action_mgmt_response($companycode, $txn_id, $row_txn['gapanalysisid']);
+      $arr_txn_init[] = ['gapanalysisid' => $row_txn['gapanalysisid'], 'mgmt_response'=>$mgmt_response, 'gapanalysisid_main' => $gapanalysisid_main, 'sorting_order' => $row_txn['sorting_order'], 'gdomain' => $row_txn['gdomain']];
+    // }
     }
 
-    asort($arr_txn);
+    // array_multisort( array_column($arr_txn_init, "sorting_order"), SORT_ASC, $arr_txn_init);
+    $temp_price_for_ques = [];
+    foreach ($arr_txn_init as $temp_key_for_ques => $row_for_required_ques) {
+      $temp_price_for_ques[$temp_key_for_ques] = $row_for_required_ques["sorting_order"];
+    }
+    array_multisort($temp_price_for_ques,SORT_ASC,$arr_txn_init);
+
+    $arr_txn_sec = [];
+    foreach ($arr_txn_init as $element) { $arr_txn_sec[$element['gdomain']][] = $element; }
+
+    $arr_txn = [];
+    foreach ($arr_txn_sec as $value_init) {
+      foreach ($value_init as $value_sec) {
+        $arr_txn[] = $value_sec;
+      }
+    }
+
+    // $arr_return=["code"=>200, "success"=>true, "data"=>$arr_txn ];
+    // return $arr_return; exit();
+
     $arr_final_txn =[];
     //timestamp
     if(strtoupper($limit) == "ALL"){
@@ -227,15 +263,22 @@ function get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page)
       }
     }
 
-    $gapanalysis_data_array=[];  
     
-    foreach ($arr_final_txn as $gapanalysisid => $sorting_sequence) {
-      $result= $session->execute($session->prepare("SELECT * FROM gap_analysis_acf WHERE gtransactionid=? AND version=? AND gapanalysisid=?"),array('arguments'=>array($txn_id, $version, new \Cassandra\Uuid($gapanalysisid))));
+
+    // $arr_mr = [];
+    // $result_mgmtresponse = $session->execute($session->prepare("SELECT resid,createdate,mgmtresponseaction,modulename,selected_response,refid FROM action_management_response WHERE transactionid=? AND status=? AND companycode= ? ALLOW FILTERING"), array('arguments' => array($txn_id, "1",$companycode)));
+    // foreach ($result_mgmtresponse as $row_mgmt) {
+    //   $row_mgmt['resid'] = (string)$row_mgmt['resid'];
+    //   $row_mgmt['createdate'] = get_date_by_timestamp($row_mgmt['createdate'], "d-m-Y");
+    //   $arr_mr[$row_mgmt['refid']] = $row_mgmt;
+    // }
+
+    $gapanalysis_data_array=[];  
+    foreach ($arr_final_txn as $value_txn) {
+      $result= $session->execute($session->prepare("SELECT * FROM gap_analysis_acf WHERE gtransactionid=? AND version=? AND gapanalysisid=?"),array('arguments'=>array($txn_id, $version, new \Cassandra\Uuid($value_txn['gapanalysisid_main']))));
       foreach ($result as $row) {
+
         $creator=$row['creator'];
-        //Action data
-        $management_response = get_action_mgmt_response($txn_id, $gapanalysisid, $companycode);
-        
         $maturity_level=$row['maturity_level'];
         $score_status=$row['score_status'];
         $updated_status=$row['updated_status'];
@@ -255,10 +298,8 @@ function get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page)
           'gcustcode' =>$row['gcustcode'],
           'grolecreator' =>$row['grolecreator'],
           'gscore' =>$row['gscore'],
-          'gtestid' =>$row['gtestid'],
-          'gtesttype' =>$row['gtesttype'],
           'validate_remark' =>$row['validate_remark'],
-          'gapanalysisid' =>$gapanalysisid,
+          'gapanalysisid' =>$value_txn['gapanalysisid'],
           'remark' =>$row['remark'],
           'maturity_level'=>$maturity_level,
           'score_status'=>$score_status,
@@ -266,12 +307,12 @@ function get_maturity_report_acf($companycode, $txn_id, $version, $limit, $page)
           'updated_score'=>$updated_score,
           'gcontroldesc'=>$row['gcontroldesc'],
           'gcontrolno' =>$row['gcontrolno'],
-          'sorting_order'=>$sorting_sequence,
+          'sorting_order'=>$value_txn['sorting_order'],
           'gdomainno'=>$row['gdomainno'],
-          'gdomain'=>$row['gdomain'],
+          'gdomain'=>$value_txn['gdomain'],
           'gcontrolobjno'=>$row['gcontrolobjno'],
           'gcontrolobjdesc'=>$row['gcontrolobjdesc'],
-          "management_response"=>$management_response
+          "management_response"=>$value_txn['mgmt_response']
         ];
     }
   }
@@ -559,7 +600,7 @@ function get_maturity_assessment_list($companycode, $limit, $page, $day){
         if(isset($array_chunk[$page])){
             $arr_final_txn=$array_chunk[$page];
         }
-
+      
         foreach ($arr_final_txn as $tid => $value) {
             $result = $session->execute($session->prepare("SELECT * FROM transactions WHERE transactionid=?"),array('arguments'=>array(new \Cassandra\Uuid($tid))));
             foreach ($result as $row) {
@@ -581,10 +622,10 @@ function get_maturity_assessment_list($companycode, $limit, $page, $day){
                             }
                         }
                     }
+                  }
 
                     $createdate=(string)$row['createdate'];
                     if($createdate==""){ $create_date="-"; }else{ $create_date=date("d-m-Y",(int)$createdate/1000); }
-
 
                     $modifydateDifference = "-";
                     $modifydate=(string)$row['modifydate'];
@@ -619,7 +660,6 @@ function get_maturity_assessment_list($companycode, $limit, $page, $day){
                     if ($result_law->count()>0) { $active_law_for_tid=$result_law[0]['dispname']; }
 
                     $transactionname=$row['transactionname'];
-
                     $arr[]=array(
                         "report_status"=>$row['status'],
                         "ldispname"=>$active_law_for_tid,
@@ -635,7 +675,6 @@ function get_maturity_assessment_list($companycode, $limit, $page, $day){
                         "modifydateDiff"=>$modifydateDifference
                       );
 
-                }
             }
         }
      
@@ -1541,6 +1580,120 @@ function save_assessment($companycode, $email, $role, $assessmentid)
     
     $arr_return=["code"=>200, "success"=>true, "data"=>[ 'message'=>'success' ] ];
     return $arr_return;
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e ]; 
+  }
+}
+
+/**
+ * @param string $companycode
+ * @param string $email
+ */
+function temp_save_response($companycode, $email){
+  try{
+    global $session;
+    $testid = ""; $type = ""; $questionno = "";
+    if(isset($_POST['testid']) && isset($_POST['type']) && isset($_POST['questionno'])){
+    }else{
+      return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid testid, questionno or type" ]; exit();
+    }
+
+    $testid = $_POST['testid'];
+    $type = $_POST['type'];
+    $questionno = $_POST['questionno'];
+    $query_table="temp_gap_acf";
+    //validate testid
+    $result= $session->execute($session->prepare('SELECT docid,docname FROM '.$query_table.' WHERE assessmentid=? AND questionno=?'),array('arguments'=>array($testid, $questionno)));
+    if($result->count() == 0){
+      $query_table="temp_gap";
+      $result= $session->execute($session->prepare('SELECT docid,docname FROM '.$query_table.' WHERE assessmentid=? AND questionno=?'),array('arguments'=>array($testid, $questionno)));
+      if($result->count() == 0){
+        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid request" ]; exit();
+      }
+    }
+
+    switch($type){
+      case "radio_response":
+        if(!isset($_POST['response']) || !isset($_POST['score']) || !empty($_POST['response']) || !empty($_POST['score'])){
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid request; response or score" ]; exit();
+        }
+        
+        $response = escape_input($_POST['response']);
+        $score = escape_input($_POST['score']);
+        if(!in_array($score, ['NA','0', '1', '2', '3'])){
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid score" ]; exit();
+        }
+        $session->execute($session->prepare('UPDATE '.$query_table.' SET decision=?,score=?,modifydate=? WHERE assessmentid=? AND questionno=?'),array('arguments'=>array($response,$score,new \Cassandra\Timestamp(),$testid,$questionno)));
+        $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'success'] ];
+        return $arr_return; exit();
+        break;
+
+      case "text_response":
+        if(!isset($_POST['response']) || !isset($_POST['score']) || !isset($_POST['type_for_text']) || !empty($_POST['response']) || !empty($_POST['score']) || !empty($_POST['type_for_text'])){
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid request; response, score or type_for_text" ]; exit();
+        }
+        
+        $response = escape_input($_POST['response']);
+        $score = escape_input($_POST['score']);
+        $type_for_text = escape_input($_POST['type_for_text']);
+
+        if(!in_array($score, ['NA','0', '1', '2', '3'])){
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid score" ]; exit();
+        }
+        if(!in_array($type_for_text, ['response','remark'])){
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid type_for_text" ]; exit();
+        }
+
+        if ($type_for_text=='response') {
+          $session->execute($session->prepare('UPDATE '.$query_table.' SET textbox=?,score=?,modifydate=? WHERE assessmentid=? AND questionno=?'),array('arguments'=>array($response,$score,new \Cassandra\Timestamp(),$testid,$questionno)));
+          echo "success";
+        }else{
+          $session->execute($session->prepare('UPDATE '.$query_table.' SET remark=?,modifydate=? WHERE assessmentid=? AND questionno=?'),array('arguments'=>array($response,new \Cassandra\Timestamp(),$testid,$questionno)));
+        }
+        $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'success'] ];
+        return $arr_return; exit();
+        break;
+
+      case "upload_response":
+        if(!isset($_FILES["files"])){
+          return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid files request" ]; exit();
+        }
+
+        //validate files
+        $allowedFileType = array('txt','jpg','doc','docx','xls','xlsx','zip','rar','tar.gz','pdf','jpeg','PNG','csv','JPEG','JPG','png','pptx');
+        $custcode = get_custcode_from_email($email);
+        $docvalidation = document_validation_api($_FILES["files"],$allowedFileType,$minFileSize=1,$maxFileSize=5000000);
+        if(!$docvalidation['success']){
+          return $docvalidation; exit();
+        }
+
+        $document_upload_api = document_upload_api($_FILES["files"],$allowedFileType,$minFileSize=1,$maxFileSize=5000000,$description="",$companycode,$email,$custcode,$testid);
+        if(!$document_upload_api['success']){
+          return $document_upload_api; exit();
+        }
+
+        $docid ="docid";
+        $docname="docname";
+        foreach ($document_upload_api['data'] as $value_doc) {
+          $docid .="|".$value_doc['docid'];
+          $docname .="|".$value_doc['docname'];
+        }
+
+        $docid_n=substr($result[0]['docid'],5);
+        $docname_n=substr($result[0]['docname'],7);
+
+        $session->execute($session->prepare("UPDATE ".$query_table." SET docid=? ,docname=?,modifydate=? WHERE assessmentid=? AND questionno=?"),array('arguments'=>array(
+          $docid.$docid_n,$docname.$docname_n,new \Cassandra\Timestamp(),$testid,$questionno
+        )));
+
+        $arr_return=["code"=>200, "success"=>true, "data"=>['message' => 'success', 'docid' => $docid.$docid_n, 'docname' => $docname.$docname_n] ];
+        return $arr_return; exit();
+        break;
+
+      default:
+        return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>"invalid request" ]; exit();
+    }
+
   } catch (\Exception $e) {
     return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e ]; 
   }

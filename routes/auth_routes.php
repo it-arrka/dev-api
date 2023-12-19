@@ -70,6 +70,15 @@ switch($route_part_2){
     case "action":
         require_once 'auth/action_routes.php';
         break;
+    case "ropa":
+        require_once 'auth/ropa_routes.php';
+        break;
+    case "scheduler":
+        require_once 'auth/scheduler_routes.php';
+        break;
+    case "policy":
+        require_once 'auth/policy_routes.php';
+        break;
     default:
          http_response_code(404); 
          echo json_encode(["message"=>"404 Not Found"]);

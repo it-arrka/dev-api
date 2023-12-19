@@ -17,7 +17,7 @@ function checkValueExist($dataArray, $requiredKeys) {
   foreach ($requiredKeys as $key) {
       if (isset($dataArray[$key])) {
         if(is_string($dataArray[$key]) || is_numeric($dataArray[$key])) {
-          if($dataArray[$key] == ""){
+          if(escape_input($dataArray[$key]) == ""){
             return false; exit();
           }
         }else{
@@ -677,7 +677,7 @@ function notice_update_all($transactionid,$companycode,$notice_to,$notice_to_rol
     $arr_return=["code"=>200, "success"=>true, "data"=>[]];
     return $arr_return;
   } catch (\Exception $e) {
-    return "Error Occured";
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -686,7 +686,7 @@ function module_assign_email_role_list($page_module,$module_type,$companycode)
 {
   try {
     global $session; $arr=array();
-    if ($page_module=='' || $module_type=='' || $companycode=='') { return $arr; exit(); }
+    if ($page_module=='' || $module_type=='' || $companycode=='') { $arr[0]=array("email"=>"","role"=>""); return $arr; exit(); }
     $page_arr=explode("|",$page_module);
     //Find all roles with modify access
     $result=$session->execute($session->prepare('SELECT * FROM roletocustomer WHERE companycode=? AND rolestatus=? ALLOW FILTERING'),array('arguments'=>array($companycode,"1")));
@@ -719,13 +719,11 @@ function module_assign_email_role_list($page_module,$module_type,$companycode)
 
     $arr_final=array_unique($arr,SORT_REGULAR);
     if(count($arr_final)==0) { $arr_final[0]=['email'=>"",'role'=>'']; }
-    $arr_return=["code"=>200, "success"=>true, "data"=>$arr_final];
-    return $arr_return;
+    return $arr_final;
 
   } catch (\Exception $e) {
     $arr_final[0]=['email'=>"",'role'=>''];
-    $arr_return=["code"=>200, "success"=>true, "data"=>$arr_final];
-    return $arr_return;
+    return $arr_final;
   }
 }
 
@@ -858,6 +856,7 @@ function check_if_role_exist_in_company($companycode, $role)
     return false;
   }
 }
+
 
 function check_if_email_role_exist_in_company($companycode, $email, $role)
 {

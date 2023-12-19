@@ -5,6 +5,7 @@ require_once $_ENV['HOME_PATH'].'/modules/maturity_rest_api.php';
 require_once $_ENV['HOME_PATH'].'/modules/maturity_rest_api_old.php';
 require_once $_ENV['HOME_PATH'].'/modules/acf/acf_common_api.php';
 require_once $_ENV['HOME_PATH'].'/modules/actions/action_rest_api.php';
+require_once $_ENV['HOME_PATH'].'/common/upload_api.php';
 
 switch($route_function_trigger_params){
     case 'assessmentList':
@@ -26,6 +27,10 @@ switch($route_function_trigger_params){
     case 'initiateAssessment':
         allowedRequestTypes("POST");
         GetMaturityHandler("initiateAssessment");   
+        break;
+    case 'tempSaveResponse':
+        allowedRequestTypes("POST");
+        GetMaturityHandler("tempSaveResponse");   
         break;
     case 'saveAssessment':
         allowedRequestTypes("POST");

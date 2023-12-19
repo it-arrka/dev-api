@@ -15,6 +15,11 @@ switch($route_function_trigger_params){
         allowedRequestTypes("POST");
         GetActionHandler("save-define-action");   
         break;
+
+    case 'row-action-details':
+        allowedRequestTypes("GET");
+        GetActionHandler("row-action-details");   
+        break;
     default:
         http_response_code(404); 
         echo json_encode(["message"=>"404 Not Found"]);

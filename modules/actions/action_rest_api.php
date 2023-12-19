@@ -64,12 +64,56 @@ function GetActionHandler($funcCallType){
         }
         break;
 
+      case "row-action-details":
+        if(isset($GLOBALS['companycode']) && isset($_GET['tid']) && isset($_GET['refid'])){
+          $output = get_row_action_details($GLOBALS['companycode'], $_GET['tid'], $_GET['refid']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
         default:
           catchErrorHandler(400,[ "message"=>E_INV_REQ, "error"=>"" ]);
           break;
     }
   }catch(Exception $e){
     catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
+  }
+}
+
+/**
+ * Get defined action and temp action with status
+ */
+function get_row_action_details($companycode, $txn_id, $refid){
+  try {
+    global $session;
+    $arr = []; $temp_arr = [];
+    $res_action = $session->execute($session->prepare("SELECT * FROM actions_data WHERE transactionid=? AND refid= ? AND companycode=? AND status=?"), array('arguments' => array($txn_id, $refid, $companycode, "1")));
+    foreach ($res_action as $row_action) {
+      $row_action['id'] = (string)$row_action['id'];
+      $arr[] = $row_action;
+    }
+
+    $res_temp_action = $session->execute($session->prepare("SELECT * FROM actions_data WHERE transactionid=? AND refid= ? AND companycode=? AND status=?"), array('arguments' => array($txn_id, $refid, $companycode, "1")));
+    foreach ($res_temp_action as $row_temp_action) {
+      $row_temp_action['id'] = (string)$row_temp_action['id'];
+      $temp_arr[] = $row_temp_action;
+    }
+
+    $final_arr = [
+      "actions" => $arr,
+      "temp_actions" => $temp_arr
+    ];
+
+    $arr_return=["code"=>200, "success"=>true, "data"=>$final_arr];
+    return $arr_return;
+  } catch (\Exception $e) {
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
   }
 }
 
@@ -156,7 +200,7 @@ function validate_temp_actions_input_data($companycode, $transactionid, $refid, 
       }
   
       //datestring, min, max
-      if(!isDateInRange($estimated_closure_date, date("YYYY-mm-dd"))){
+      if(!isDateInRange($estimated_closure_date, date("Y-m-d"))){
         return ["code"=>400, "success" => false, "message"=>E_PAYLOAD_INV, "error"=>$estimated_closure_date." Estimated Closure Date must not be less than Today Date" ]; exit();
       }
 
@@ -707,7 +751,7 @@ function save_define_actions($txn_id, $refid,$type, $globalVariableAction, $comp
 
       $link = "review_act.php?tid=" . $cont_key . "&tname=" . $txn_name . "&type=" . $type;
 
-      foreach ($email_role_array['data'] as $em_role) {
+      foreach ($email_role_array as $em_role) {
         $notice_output = notice_write("IT01", $companycode, $email, $role, $link, $em_role['cabemail'], $em_role['cabrole'], $txn_name, (string) $txn_id);
       }
 
@@ -874,15 +918,19 @@ function action_report_data_insert($txn_id, $refid, $module_name, $report_data, 
   }
 }
 
-function get_action_mgmt_response($tid, $refid, $companycode)
+function get_action_mgmt_response($companycode, $txn_id, $refid)
 {
   try {
     global $session;
     $arr = [];
-    $result_mgmtresponse = $session->execute($session->prepare("SELECT resid,createdate,mgmtresponseaction,modulename,selected_response FROM action_management_response WHERE refid=? AND transactionid =? AND status=? AND companycode= ? ALLOW FILTERING"), array('arguments' => array($refid, $tid, "1",$companycode)));
+    $result_mgmtresponse = $session->execute($session->prepare("SELECT mgmtresponseaction,selected_response FROM action_management_response WHERE refid=? AND status=? ALLOW FILTERING"), array('arguments' => array($refid, "1")));
     foreach ($result_mgmtresponse as $row) {
-      $row['resid'] = (string)$row['resid'];
-      $row['createdate'] = get_date_by_timestamp($row['createdate'], "d-m-Y");
+      $already_defined = false;
+      $res_action = $session->execute($session->prepare("SELECT id FROM actions_data WHERE transactionid=? AND refid= ? AND companycode=? AND status=?"), array('arguments' => array($txn_id, $refid, $companycode, "1")));
+      if($res_action -> count()>0){
+        $already_defined = true;
+      }
+      $row['already_defined'] = $already_defined;
       $arr = $row;
     }
     return $arr;
