@@ -42,6 +42,7 @@ $GLOBALS['email'] = $accessTokenValidationHandler['data']['email'];
 $GLOBALS['role'] = $accessTokenValidationHandler['data']['role'];
 $GLOBALS['companycode'] = $accessTokenValidationHandler['data']['companycode'];
 $GLOBALS['law'] = $accessTokenValidationHandler['data']['law'];
+$GLOBALS['custcode'] = get_custcode_from_email($GLOBALS['email']);
 $GLOBALS['access_token'] = $accessTokenValidationHandler['data']['access_token'];
 
 //put a switch case
