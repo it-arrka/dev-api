@@ -1323,4 +1323,62 @@ function rolematrix_for_assessment($type)
      }
    }
 
+   function get_all_roles_for_company($companycode){
+    try{
+      global $session;
+      $arr_role = [];
+      $result_role= $session->execute($session->prepare("SELECT rtcrole FROM roletocustomer WHERE companycode=? AND rolestatus=? ALLOW FILTERING"),array('arguments'=>array($companycode,"1")));
+      foreach ($result_role as $row) { array_push($arr_role,$row['rtcrole']); }
+      sort($arr_role);
+      
+      $arr_return=["code"=>200, "success"=>true, "data"=>array_unique($arr_role)];
+      return $arr_return;
+    } catch (\Exception $e) {
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+    }
+   }
+
+   function get_emails_from_roles_in_company($companycode, $role)
+    {
+      global $session; 
+      try {
+        if($role==''){ $role=' '; }
+        $arr=[]; $email_arr = []; $final_arr = [];
+        if($role=='Auto'){ $email_arr = ["Auto"]; }else{
+          //Roles
+          $result_role= $session->execute($session->prepare("SELECT rtccustemail FROM roletocustomer WHERE companycode=? AND rolestatus=? AND rtcrole=? ALLOW FILTERING"),array('arguments'=>array($companycode,"1",$role)));
+          foreach ($result_role as $row) { array_push($arr,$row['rtccustemail']); }
+          sort($arr);
+          $email_arr=array_unique($arr);
+          foreach ($email_arr as $key => $value) {
+            $result_er= $session->execute($session->prepare("SELECT custuserpasswd, custfname, custlname FROM customer WHERE custemailaddress=?"),array('arguments'=>array($value)));
+            if ($result_er[0]['custuserpasswd']!='') {
+              $final_arr []= [
+                "email" => $value,
+                "name" => $result_er[0]['custfname']." ".$result_er[0]['custlname']
+              ];
+            }
+          }
+        }
+        $arr_return=["code"=>200, "success"=>true, "data"=>$final_arr];
+        return $arr_return;
+      } catch (\Exception $e) {
+      return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+      }
+    }
+
+
+    function get_companyname_from_companycode($companycode){
+      try{
+        global $session;
+        $companyname = "";
+        $result= $session->execute($session->prepare("SELECT companyname FROM company WHERE companycode=?"),array('arguments'=>array($companycode)));
+        foreach ($result as $row) { $companyname = $row['companyname']; }
+        
+        return $companyname;
+      } catch (\Exception $e) {
+        return "";
+      }
+    }
+    
 ?>

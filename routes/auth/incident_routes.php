@@ -33,6 +33,31 @@ switch($route_function_trigger_params){
         allowedRequestTypes("POST");
         GetIncidentHandler("initiate");   
         break;
+    case 'save-incident-analyze-security':
+        allowedRequestTypes("POST");
+        GetIncidentHandler("save-incident-analyze-security");   
+        break;
+    case 'save-incident-analyze-privacy':
+        allowedRequestTypes("POST");
+        GetIncidentHandler("save-incident-analyze-privacy");   
+        break;
+    case 'save-incident-resolve-security':
+        allowedRequestTypes("POST");
+        GetIncidentHandler("save-incident-resolve-security");   
+        break;
+    case 'save-incident-resolve-privacy':
+        allowedRequestTypes("POST");
+        GetIncidentHandler("save-incident-resolve-privacy");   
+        break;
+
+    case 'save-incident-investigate-security':
+        allowedRequestTypes("POST");
+        GetIncidentHandler("save-incident-investigate-security");   
+        break;
+    case 'save-incident-investigate-privacy':
+        allowedRequestTypes("POST");
+        GetIncidentHandler("save-incident-investigate-privacy");   
+        break;
     default:
         http_response_code(404); 
         echo json_encode(["message"=>"404 Not Found"]);

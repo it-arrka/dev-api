@@ -1373,6 +1373,10 @@ function get_maturity_question($assessmentid, $limit, $page)
         }
 
         foreach ($result as $row) {
+
+          $docid_arr = explode("|",$tmp['docid']); array_shift($docid_arr);
+          $docname_arr = explode("|",$tmp['docname']); array_shift($docname_arr);
+
           //Option for question
           $options=array(
             "A"=>"Not Applicable",
@@ -1382,6 +1386,9 @@ function get_maturity_question($assessmentid, $limit, $page)
             "E"=>str_replace("'","",$row['opte']),
             "F"=>"other"
           );
+
+          if($tmp['textbox'] == ""){ $tmp['textbox'] = ""; }
+          if($tmp['remark'] == ""){ $tmp['remark'] = ""; }
           $arr[]=array(
                 'questionno'=>$questionno,
                 'options'=>$options,
@@ -1389,8 +1396,8 @@ function get_maturity_question($assessmentid, $limit, $page)
                 'decision'=>$tmp['decision'],
                 'score'=>$tmp['score'],
                 'textbox'=>$tmp['textbox'],
-                'docid'=>$tmp['docid'],
-                'docname'=>$tmp['docname'],
+                'docid'=>$docid_arr,
+                'docname'=>$docname_arr,
                 'remark'=>$tmp['remark']
           );
         }

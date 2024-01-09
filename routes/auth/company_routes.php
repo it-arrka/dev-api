@@ -28,6 +28,15 @@ switch($route_function_trigger_params){
         allowedRequestTypes("POST");
         GetCompanyHandler("changecompany");   
         break;
+    case 'get-all-roles':
+        allowedRequestTypes("GET");
+        GetCompanyHandler("get-all-roles");   
+        break;
+
+    case 'get-emails-from-role':
+        allowedRequestTypes("GET");
+        GetCompanyHandler("get-emails-from-role");   
+        break;
     default:
         http_response_code(404); 
         echo json_encode(["message"=>"404 Not Found"]);

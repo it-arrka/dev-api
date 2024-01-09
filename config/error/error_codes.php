@@ -16,7 +16,6 @@ define("E_NO_PAGE_ACCESS","No Page Access");
 
 
 
-
 define("E_INV_REQ","INVALID REQUEST");
 define("E_AUTH_ERR","Authorization Error");
 define("E_INV_CRED","INVALID CREDENTIALS");

@@ -153,6 +153,20 @@ function GetRopaHandler($funcCallType){
             break;
 
 
+        case "get-ropa-init-data":
+          if(isset($GLOBALS['companycode'])){
+              $output = get_ropa_init_data($GLOBALS['companycode']);
+              if($output['success']){
+              commonSuccessResponse($output['code'],$output['data']);
+              }else{
+              catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+              }
+          }else{
+              catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+          }
+          break;
+
+
         case "get-processor-specific-data":
           if(isset($_GET['id'])){
             if(isset($GLOBALS['companycode'])){
@@ -177,6 +191,66 @@ function GetRopaHandler($funcCallType){
     }catch(Exception $e){
       catchErrorHandler($output['code'], [ "message"=>"", "error"=>$e->getMessage() ]);
     }
+}
+
+function get_ropa_init_data($companycode){
+  try {
+    global $session; 
+
+    //get business data
+    $business=array();
+    $result= $session->execute($session->prepare("SELECT deptname FROM ropadepartments"));
+    foreach ($result as $row) { array_push($business,$row['deptname']); }
+    // Extra data from db
+    $result_n= $session->execute($session->prepare("SELECT bussinessfunction FROM ropacontroller WHERE companycode=? ALLOW FILTERING"),array('arguments'=>array($companycode)));
+    foreach ($result_n as $row_n) {
+      $bussinessfunction=explode("|",$row_n['bussinessfunction']);
+      $business=array_merge($business,$bussinessfunction);
+    }
+
+    //get category data
+    $category=array("Employees","Successful candidates","Unsuccessful candidates","Existing customers","Potential customers");
+    $result_n= $session->execute($session->prepare("SELECT individualcat FROM ropacontroller WHERE companycode=? ALLOW FILTERING"),array('arguments'=>array($companycode)));
+    foreach ($result_n as $row_n) {
+      if (!$row_n['individualcat']=='') {
+        $individualcat=explode("|",$row_n['individualcat']);
+        $category=array_merge($category,$individualcat);
+      }
+    }
+
+    //get category for personal data
+    $category_pd = [];
+    $result= $session->execute("SELECT pdcategory FROM pditem");
+    foreach ($result as $row) { array_push($category_pd,$row['pdcategory']); }
+
+    $source_pd=array("Data subject","Controller");
+    $result_n= $session->execute($session->prepare("SELECT sourcepd FROM ropacontroller WHERE companycode=? ALLOW FILTERING"),array('arguments'=>array($companycode)));
+    foreach ($result_n as $row_n) {
+      if (!$row_n['sourcepd']=='') {
+        $sourcepd=explode("|",$row_n['sourcepd']);
+        $source_pd=array_merge($source_pd,$sourcepd);
+      }
+    }
+
+    //impact assessment progress
+    $impact_assessment = ['Yet to Start', 'In Progress', 'Completed'];
+
+
+    $final_arr = [
+      "business" => array_unique($business),
+      "category" => array_unique($category),
+      "category_pd" => array_unique($category_pd),
+      "source_pd" => array_unique($source_pd),
+      "impact_assessment" => $impact_assessment
+    ];
+
+
+    $arr_return=["code"=>200, "success"=>true, "data"=>$final_arr ];
+    return $arr_return;
+
+} catch(Exception $e){
+    return ["code"=>500, "success" => false, "message"=>E_FUNC_ERR, "error"=>$e->getMessage() ]; 
+}
 }
 
 function get_controller_contact($companycode)

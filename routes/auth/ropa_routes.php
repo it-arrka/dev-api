@@ -43,6 +43,10 @@ switch($route_function_trigger_params){
         allowedRequestTypes("GET");
         GetRopaHandler("get-processor-specific-data");   
         break;
+    case 'get-ropa-init-data':
+        allowedRequestTypes("GET");
+        GetRopaHandler("get-ropa-init-data");   
+        break;
     default:
         http_response_code(404); 
         echo json_encode(["message"=>"404 Not Found"]);

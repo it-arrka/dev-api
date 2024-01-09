@@ -15,7 +15,6 @@ switch($route_function_trigger_params){
         allowedRequestTypes("POST");
         GetActionHandler("save-define-action");   
         break;
-
     case 'row-action-details':
         allowedRequestTypes("GET");
         GetActionHandler("row-action-details");   

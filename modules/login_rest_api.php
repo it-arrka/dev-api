@@ -95,7 +95,6 @@ function UserLoginHandler($funcCallType){
 
 function UserLogoutHandler(){
   try{
-
     $arr_cookies = [];
     foreach ($_COOKIE as $name => $value) {
       if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
@@ -111,7 +110,6 @@ function UserLogoutHandler(){
       }
     }
     commonSuccessResponse(200, $_COOKIE);
-
   }catch (\Exception $e) {
     catchErrorHandler(500, [ "message"=>"", "error"=>$e->getMessage() ]);
   }

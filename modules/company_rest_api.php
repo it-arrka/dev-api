@@ -88,6 +88,32 @@ function GetCompanyHandler($funcCallType){
         }
         break;
 
+      case "get-all-roles":
+        if(isset($GLOBALS['companycode'])){
+          $output = get_all_roles_for_company($GLOBALS['companycode']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
+      case "get-emails-from-role":
+        if(isset($GLOBALS['companycode']) && isset($_GET['role'])){
+          $output = get_emails_from_roles_in_company($GLOBALS['companycode'], $_GET['role']);
+          if($output['success']){
+            commonSuccessResponse($output['code'],$output['data']);
+          }else{
+            catchErrorHandler($output['code'],[ "message"=>$output['message'], "error"=>$output['error'] ]);
+          }
+        }else{
+          catchErrorHandler(400,[ "message"=>E_PAYLOAD_INV, "error"=>"" ]);
+        }
+        break;
+
         default:
           catchErrorHandler(400,[ "message"=>E_INV_REQ, "error"=>"" ]);
           break;
