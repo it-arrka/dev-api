@@ -97,6 +97,10 @@ switch ($route_part_2) {
     case "asset":
         require_once 'auth/asset_routes.php';
         break;
+    case "implementation":
+        require_once 'auth/implementation_routes.php';
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(["message" => "404 Not Found"]);

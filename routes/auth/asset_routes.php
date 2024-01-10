@@ -14,6 +14,11 @@ switch ($route_function_trigger_params) {
         GetAssetHandler("asset_sub_cat");
         break;
 
+    case 'asset_type':
+        allowedRequestTypes("POST");
+        GetAssetHandler("asset_type");
+        break;
+
     case 'asset_data_register':
         allowedRequestTypes("POST");
         GetAssetHandler("asset_data_register");

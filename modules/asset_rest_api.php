@@ -31,13 +31,32 @@ function GetAssetHandler($funcCallType)
         }
         break;
 
+      case "asset_type":
+        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($_GET['category']) && isset($_GET['type'])) {
+          $output = asset_type($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_GET['category'], $_GET['type']);
+          if ($output['success']) {
+            commonSuccessResponse($output['code'], $output['data']);
+          } else {
+            catchErrorHandler($output['code'], ["message" => $output['message'], "error" => $output['error']]);
+          }
+        } else {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+        }
+        break;
+
       case "asset_data_register":
-
         $jsonString = file_get_contents('php://input');
+        if ($jsonString == "") {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
         $json = json_decode($jsonString, true);
-
-        if (isset($json['data']) && isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role'])) {
-          $output = asset_data_register($json['data'], $GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role']);
+        if (!is_array($json)) {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        if (isset($json['data']) && isset($GLOBALS['companycode']) && isset($GLOBALS['custcode'])) {
+          $output = asset_data_register($json['data'], $GLOBALS['companycode'], $GLOBALS['custcode']);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
           } else {
@@ -63,9 +82,6 @@ function GetAssetHandler($funcCallType)
 
       case "asset_del_id":
         if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($_POST['id'])) {
-
-          die('case');
-
           $output = asset_del_id($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_POST['id']);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
@@ -78,11 +94,22 @@ function GetAssetHandler($funcCallType)
         break;
 
       case "data_row_save":
-        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($_POST['id'])) {
+        $jsonString = file_get_contents('php://input');
+        if ($jsonString == "") {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        $json = json_decode($jsonString, true);
+        if (!is_array($json)) {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
 
-          die('case');
+        // echo json_encode($json);
+        // die('case');
 
-          $output = data_row_save($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role']);
+        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($json['data_row_save']) && isset($json['id'])) {
+          $output = data_row_save($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['data_row_save'], $json['id']);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
           } else {
@@ -92,7 +119,6 @@ function GetAssetHandler($funcCallType)
           catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
         }
         break;
-
 
       default:
         catchErrorHandler(400, ["message" => E_INV_REQ, "error" => ""]);
@@ -141,48 +167,83 @@ function load_asset_config_data($companycode, $email, $role)
 
 function asset_sub_cat($companycode)
 {
-  $arr = array();
-  $arr_n = array();
-  $arr_d = array();
-  $final_arr = array();
-  global $session;
-  $res = $session->execute($session->prepare('SELECT assetcat FROM assetcat WHERE status=? ALLOW FILTERING'), array('arguments' => array("1")));
-  $res_cat = $session->execute($session->prepare('SELECT category FROM assetcategory WHERE status=? AND companycode=? ALLOW FILTERING'), array('arguments' => array("1", $companycode)));
-  $res_d = $session->execute($session->prepare('SELECT locationdepartment FROM locationinscope WHERE companycode=? ALLOW FILTERING'), array('arguments' => array($companycode)));
-  $res_n = $session->execute($session->prepare('SELECT pdcategory FROM pditem WHERE status=? ALLOW FILTERING'), array('arguments' => array("1")));
-  foreach ($res as $row) {
-    array_push($arr, $row['assetcat']);
-  }
-  foreach ($res_cat as $row_cat) {
-    array_push($arr, $row_cat['category']);
-  }
-  foreach ($res_n as $row_n) {
-    array_push($arr_n, $row_n['pdcategory']);
-  }
-  foreach ($res_d as $row_d) {
-    $dept = explode("|", $row_d['locationdepartment']);
-    foreach ($dept as $det) {
-      $dep_t = explode(",", $det);
-      if ($dep_t[0] !== "") {
-        array_push($arr_d, $dep_t[0]);
+  try {
+    $arr = array();
+    $arr_n = array();
+    $arr_d = array();
+    $final_arr = array();
+    global $session;
+    $res = $session->execute($session->prepare('SELECT assetcat FROM assetcat WHERE status=? ALLOW FILTERING'), array('arguments' => array("1")));
+    $res_cat = $session->execute($session->prepare('SELECT category FROM assetcategory WHERE status=? AND companycode=? ALLOW FILTERING'), array('arguments' => array("1", $companycode)));
+    $res_d = $session->execute($session->prepare('SELECT locationdepartment FROM locationinscope WHERE companycode=? ALLOW FILTERING'), array('arguments' => array($companycode)));
+    $res_n = $session->execute($session->prepare('SELECT pdcategory FROM pditem WHERE status=? ALLOW FILTERING'), array('arguments' => array("1")));
+    foreach ($res as $row) {
+      array_push($arr, $row['assetcat']);
+    }
+    foreach ($res_cat as $row_cat) {
+      array_push($arr, $row_cat['category']);
+    }
+    foreach ($res_n as $row_n) {
+      array_push($arr_n, $row_n['pdcategory']);
+    }
+    foreach ($res_d as $row_d) {
+      $dept = explode("|", $row_d['locationdepartment']);
+      foreach ($dept as $det) {
+        $dep_t = explode(",", $det);
+        if ($dep_t[0] !== "") {
+          array_push($arr_d, $dep_t[0]);
+        }
       }
     }
+    sort($arr);
+    sort($arr_n);
+    sort($arr_d);
+    $final_arr = array("asset" => array_unique($arr), "pd" => array_unique($arr_n), "dept" => array_unique($arr_d));
+    $arr_return = ["code" => 200, "success" => true, "data" => $final_arr];
+    return $arr_return;
+  } catch (\Exception $e) {
+    return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
   }
-  sort($arr);
-  sort($arr_n);
-  sort($arr_d);
-  $final_arr = array("asset" => array_unique($arr), "pd" => array_unique($arr_n), "dept" => array_unique($arr_d));
-  // echo json_encode($final_arr);
-
-  $arr_return = ["code" => 200, "success" => true, "data" => $final_arr];
-  return $arr_return;
 }
 
-function asset_data_register($data, $companycode, $email, $role)
+function asset_type($companycode, $email, $role, $category, $type)
 {
+  try {
+    $arr = array();
+    global $session;
+    if ($type == "asset") {
+      $res = $session->execute($session->prepare('SELECT assettype FROM assetcat WHERE assetcat=? ALLOW FILTERING'), array('arguments' => array($category)));
+      foreach ($res as $row) {
+        array_push($arr, $row['assettype']);
+      }
+    } else if ($type == 'pd') {
+      $res = $session->execute($session->prepare('SELECT pdsubcategory FROM pditem WHERE pdcategory=? ALLOW FILTERING'), array('arguments' => array($category)));
+      foreach ($res as $row) {
+        array_push($arr, $row['pdsubcategory']);
+      }
+    } else {
+      $cat_s = $category;
+      $res = $session->execute($session->prepare('SELECT pdelement FROM pditem WHERE pdsubcategory=? ALLOW FILTERING'), array('arguments' => array($cat_s)));
+      foreach ($res as $row) {
+        array_push($arr, $row['pdelement']);
+      }
+    }
+    sort($arr);
+    $final_arr = json_encode(array_unique($arr));
+    $arr_return = ["code" => 200, "success" => true, "data" => $final_arr];
+    return $arr_return;
+  } catch (\Exception $e) {
+    return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+  }
+}
 
+function asset_data_register($data, $companycode, $customer_id)
+{
+  $transcode = $data['asset_txn_id_pd'];
+  $data = $data['asset_data_register'];
+  // echo $data;
+  // die('dead asset_data_register');
   global $session;
-  $transcode = $_POST['asset_txn_id_pd'];
 
   foreach ($data as $key => $value) {
     $data[$key] = escape_input($value);
@@ -230,7 +291,7 @@ function asset_data_register($data, $companycode, $email, $role)
         )
       )
     );
-    $arr_return = ["code" => 200, "success" => true];
+    $arr_return = ["code" => 200, "success" => true, "data" => "Asset successfully registered"];
     return $arr_return;
   } catch (Exception $e) {
     catchErrorHandler($output['code'], ["message" => "", "error" => $e->getMessage()]);
@@ -378,27 +439,27 @@ function asset_view_data($companycode, $email, $role, $page_index, $return_type 
 
 function asset_del_id($companycode, $email, $role, $id)
 {
-  die('dead asset_del_id');
   try {
     global $session;
-    $result = $session->execute($session->prepare('SELECT status FROM transasscust WHERE transasscompanycode=? AND transasscust=? ALLOW FILTERING'), array('arguments' => array($companycode, new \Cassandra\Uuid($id))));
+    $result = $session->execute($session->prepare('SELECT status FROM transasscust WHERE transasscompanycode=? AND transasscust=? AND status=? ALLOW FILTERING'), array('arguments' => array($companycode, new \Cassandra\Uuid($id), '1')));
     if ($result->count() > 0) {
       $session->execute($session->prepare('UPDATE transasscust SET status=? WHERE transasscust=?'), array('arguments' => array("0", new \Cassandra\Uuid($id))));
 
-      $arr_return = ["code" => 200, "success" => true];
+      $arr_return = ["code" => 200, "success" => true, "data" => "Asset deleted"];
       return $arr_return;
     } else {
-      echo "Error Occured. Try Again!!";
+      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Asset Id does not exist!"];
+      exit();
     }
   } catch (Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
   }
 }
 
-function data_row_save($companycode, $email, $role)
+function data_row_save($companycode, $email, $role, $data, $id)
 {
   global $session;
-  $data = json_decode($_POST['data_row_save'], true);
+  // $data = json_decode($_POST['data_row_save'], true);
   $purchase_date_ff = date("d F Y", strtotime($data['transpurdt'] . "+1 day"));
   $purchase_date = $purchase_date_ff . " 05:30:00";
   $expiry_date_ff = date("d F Y", strtotime($data['transAMCexpirydt'] . "+1 day"));
@@ -415,7 +476,7 @@ function data_row_save($companycode, $email, $role)
        transavailability=?,
        transbackupfreq=?,
        transbackupreqd=?,
-       transclassification=?,
+      --  transclassification=?,
        transconfidentiality=?,
        transcriticality=?,
        transintegrity=?,
@@ -439,7 +500,7 @@ function data_row_save($companycode, $email, $role)
           escape_input($data['transavailability']),
           escape_input($data['transbackupfreq']),
           escape_input($data['transbackupreqd']),
-          escape_input($data['transclassification']),
+          // escape_input($data['transclassification']),
           escape_input($data['transconfidentiality']),
           escape_input($data['transcriticality']),
           escape_input($data['transintegrity']),
@@ -451,11 +512,11 @@ function data_row_save($companycode, $email, $role)
           escape_input($data['transslno']),
           escape_input($data['transsuppliername']),
           new \Cassandra\timestamp(),
-          new \Cassandra\Uuid($_POST['id'])
+          new \Cassandra\Uuid($id)
         )
       )
     );
-    $arr_return = ["code" => 200, "success" => true];
+    $arr_return = ["code" => 200, "success" => true, "data" => "Asset details edited"];
     return $arr_return;
   } catch (Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];

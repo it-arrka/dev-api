@@ -531,7 +531,7 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
 
     $notice_link = "incident_resolve.php?tid=" . (string)$tid . "&wid=" . $wid;
     notice_write("IN03", $companycode, $email, $role, $notice_link, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']), $incidentno, $wid);
-    $arr_return = ["code" => 200, "success" => true, "data" => ""];
+    $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
@@ -715,7 +715,7 @@ function save_incident_analyze_privacy($companycode, $email, $role, $data)
     $notice_link = "incident_resolve.php?tid=" . (string)$tid . "&wid=" . $wid;
     notice_write("IN04", $companycode, $email, $role, $notice_link, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']), $incidentno, $wid);
 
-    $arr_return = ["code" => 200, "success" => true, "data" => ""];
+    $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
@@ -763,11 +763,11 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
       $updated_screen_status = '3';
     }
 
-    //check role email combination
-    if (!check_if_email_role_exist_in_company($companycode, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']))) {
-      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "invalid email-role combination!"];
-      exit();
-    }
+    // //check role email combination
+    // if (!check_if_email_role_exist_in_company($companycode, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']))) {
+    //   return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "invalid email-role combination!"];
+    //   exit();
+    // }
 
     $tid = $result[0]['transactionid'];
     $wid = $result[0]['irworkflowid'];
@@ -777,6 +777,11 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
     $query_get_ireid = $session->execute($session->prepare("SELECT ireid FROM incidentresolve WHERE irecompanycode=? AND ireworkflowid=? ALLOW FILTERING"), array('arguments' => array($companycode, $wid)));
     foreach ($query_get_ireid as $row) {
       $ireid = (string)$row['ireid'];
+    }
+
+    if ($ireid == ""){
+      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "invalid incident!"];
+      exit();
     }
 
     $irecontainsteps = implode("|", $data['steps_taken']);
@@ -798,7 +803,7 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
       WHERE ireid=?"),
       array('arguments' => array(
         $irecontainsteps,
-        $irecontainsteps,
+        $irecontainstepsdate,
         "",
         $companycode,
         $email,
@@ -828,7 +833,7 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
       }
     }
 
-    $arr_return = ["code" => 200, "success" => true, "data" => ""];
+    $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (\Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
@@ -876,11 +881,11 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
       $updated_screen_status = '3';
     }
 
-    //check role email combination
-    if (!check_if_email_role_exist_in_company($companycode, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']))) {
-      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "invalid email-role combination!"];
-      exit();
-    }
+    // //check role email combination
+    // if (!check_if_email_role_exist_in_company($companycode, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']))) {
+    //   return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "invalid email-role combination!"];
+    //   exit();
+    // }
 
     $tid = $result[0]['transactionid'];
     $wid = $result[0]['irworkflowid'];
@@ -890,6 +895,11 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
     $query_get_ireid = $session->execute($session->prepare("SELECT ireid FROM incidentresolve WHERE irecompanycode=? AND ireworkflowid=? ALLOW FILTERING"), array('arguments' => array($companycode, $wid)));
     foreach ($query_get_ireid as $row) {
       $ireid = (string)$row['ireid'];
+    }
+
+    if ($ireid == ""){
+      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "invalid incident!"];
+      exit();
     }
 
     $irecontainsteps = implode("|", $data['steps_taken']);
@@ -911,7 +921,7 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
       WHERE ireid=?"),
       array('arguments' => array(
         $irecontainsteps,
-        $irecontainsteps,
+        $irecontainstepsdate,
         "",
         $companycode,
         $email,
@@ -940,7 +950,7 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
         $session->execute($session->prepare("UPDATE incidentraise SET form_status_dpo=?,screen_status_dpo=? WHERE irid=?"), array('arguments' => array("0", "3", new \Cassandra\Uuid($data['irid']))));
       }
     }
-    $arr_return = ["code" => 200, "success" => true, "data" => ""];
+    $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (\Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
@@ -1007,7 +1017,7 @@ function save_incident_investigate_security($companycode, $email, $role, $data)
     notice_update_all($wid,$companycode,$email,$role,"IN05");
     $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,screen_status=? WHERE irid=?"),array('arguments'=>array("0","4",new \Cassandra\Uuid($data['irid']))));
 
-    $arr_return = ["code" => 200, "success" => true, "data" => ""];
+    $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (\Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
@@ -1075,7 +1085,7 @@ function save_incident_investigate_privacy($companycode, $email, $role, $data)
     notice_update_all($wid,$companycode,$email,$role,"IN06");
     $session->execute($session->prepare("UPDATE incidentraise SET form_status_dpo=?,screen_status_dpo=? WHERE irid=?"),array('arguments'=>array("0","4",new \Cassandra\Uuid($data['irid']))));
 
-    $arr_return = ["code" => 200, "success" => true, "data" => ""];
+    $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (\Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
