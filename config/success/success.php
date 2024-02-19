@@ -1,6 +1,7 @@
-<?php 
+<?php
 
-function commonSuccessResponse($successCode,$data){
+function commonSuccessResponse($successCode, $data)
+{
     $successMessages = [
         200 => 'OK',
         201 => 'Created',

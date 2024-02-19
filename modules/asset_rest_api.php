@@ -32,8 +32,18 @@ function GetAssetHandler($funcCallType)
         break;
 
       case "asset_type":
-        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($_GET['category']) && isset($_GET['type'])) {
-          $output = asset_type($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_GET['category'], $_GET['type']);
+        $jsonString = file_get_contents('php://input');
+        if ($jsonString == "") {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        $json = json_decode($jsonString, true);
+        if (!is_array($json)) {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($json['category']) && isset($json['type'])) {
+          $output = asset_type($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['category'], $json['type']);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
           } else {
@@ -43,6 +53,44 @@ function GetAssetHandler($funcCallType)
           catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
         }
         break;
+
+      case "add_category_input":
+        $jsonString = file_get_contents('php://input');
+        if ($jsonString == "") {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        $json = json_decode($jsonString, true);
+        if (!is_array($json)) {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+
+        if (
+          isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['add_category_input'], $json['add_subcategory_input'])
+        ) {
+          $output = add_category_input(
+            $GLOBALS['companycode'],
+            $GLOBALS['email'],
+            $GLOBALS['role'],
+            $json['add_category_input'],
+            $json['add_subcategory_input']
+          );
+          if ($output['success']) {
+            commonSuccessResponse($output['code'], $output['data']);
+            break;
+          } else {
+            catchErrorHandler(
+              $output['code'],
+              ["message" => $output['message'], "error" => $output['error']]
+            );
+          }
+        } else {
+          catchErrorHandler(
+            400,
+            ["message" => E_PAYLOAD_INV, "error" => ""]
+          );
+        }
 
       case "asset_data_register":
         $jsonString = file_get_contents('php://input');
@@ -68,8 +116,20 @@ function GetAssetHandler($funcCallType)
         break;
 
       case "asset_view_data":
-        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($_GET['page_index'])) {
-          $output = asset_view_data($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_GET['page_index']);
+        $page = 1;
+        $limit = 10;
+        $day = "ALL";
+        if (isset($_GET['page'])) {
+          $page = (int) $_GET['page'];
+        }
+        if (isset($_GET["limit"])) {
+          $limit = (int) $_GET["limit"];
+        }
+        if (isset($_GET["day"])) {
+          $day = $_GET["day"];
+        }
+        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role'])) {
+          $output = asset_view_data($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $limit, $page, $day);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
           } else {
@@ -81,8 +141,19 @@ function GetAssetHandler($funcCallType)
         break;
 
       case "asset_del_id":
-        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($_POST['id'])) {
-          $output = asset_del_id($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_POST['id']);
+        $jsonString = file_get_contents('php://input');
+        if ($jsonString == "") {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        $json = json_decode($jsonString, true);
+        if (!is_array($json)) {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+
+        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($json['id'])) {
+          $output = asset_del_id($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['id']);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
           } else {
@@ -105,11 +176,32 @@ function GetAssetHandler($funcCallType)
           exit();
         }
 
-        // echo json_encode($json);
-        // die('case');
-
         if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($json['data_row_save']) && isset($json['id'])) {
           $output = data_row_save($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['data_row_save'], $json['id']);
+          if ($output['success']) {
+            commonSuccessResponse($output['code'], $output['data']);
+          } else {
+            catchErrorHandler($output['code'], ["message" => $output['message'], "error" => $output['error']]);
+          }
+        } else {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+        }
+        break;
+
+      case 'asset_info_data_save':
+        $jsonString = file_get_contents('php://input');
+        if ($jsonString == "") {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+        $json = json_decode($jsonString, true);
+        if (!is_array($json)) {
+          catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+          exit();
+        }
+
+        if (isset($GLOBALS['companycode']) && isset($GLOBALS['email']) && isset($GLOBALS['role']) && isset($json)) {
+          $output = asset_info_data_save($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json);
           if ($output['success']) {
             commonSuccessResponse($output['code'], $output['data']);
           } else {
@@ -229,20 +321,59 @@ function asset_type($companycode, $email, $role, $category, $type)
       }
     }
     sort($arr);
-    $final_arr = json_encode(array_unique($arr));
-    $arr_return = ["code" => 200, "success" => true, "data" => $final_arr];
+    $arr_return = ["code" => 200, "success" => true, "data" => $arr];
     return $arr_return;
   } catch (\Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
   }
 }
 
-function asset_data_register($data, $companycode, $customer_id)
+function add_category_input($companycode, $email, $role, $category, $subcategory)
+{
+  try {
+
+
+
+    global $session;
+    $session->execute(
+      $session->prepare('INSERT INTO assetcategory(
+      id,
+      createdate,
+      effectivedate,
+      category,
+      subcategory,
+      companycode,
+      role,
+      email,
+      status
+
+    ) VALUES(?,?,?,?,?,?,?,?,?)'),
+      array(
+        'arguments' => array(
+          new \Cassandra\Uuid(),
+          new \Cassandra\timestamp(),
+          new \Cassandra\timestamp(),
+          $category,
+          $subcategory,
+          $companycode,
+          $role,
+          $email,
+          "1"
+        )
+      )
+    );
+
+    $arr_return = ["code" => 200, "success" => true, "data" => "Category successfully added"];
+    return $arr_return;
+  } catch (\Exception $e) {
+    return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+  }
+}
+
+function asset_data_register($data, $companycode, $custcode)
 {
   $transcode = $data['asset_txn_id_pd'];
   $data = $data['asset_data_register'];
-  // echo $data;
-  // die('dead asset_data_register');
   global $session;
 
   foreach ($data as $key => $value) {
@@ -277,7 +408,7 @@ function asset_data_register($data, $companycode, $customer_id)
           new \Cassandra\timestamp(),
           "1",
           $companycode,
-          $customer_id,
+          $custcode,
           (string) $transcode,
           $data['dept'],
           $data['asset_category'],
@@ -298,18 +429,37 @@ function asset_data_register($data, $companycode, $customer_id)
   }
 }
 
-function asset_view_data($companycode, $email, $role, $page_index, $return_type = "")
+function asset_view_data($companycode, $email, $role, $limit, $page, $day)
 {
-  global $session;
-  $arr = array();
-
   try {
+    global $session;
+
+    //timestamp
+    $timestamp = 0;
+    if (strtoupper($day) != "ALL") {
+      $last_day = (int) $day;
+      if ($last_day < 1) {
+        $last_day = 1;
+      }
+      $timestamp = strtotime("-" . $last_day . " days");
+    }
+
+    //validate limit and page
+    if ($limit != 'all') { // If limit is not 'all', enforce the limit
+      if ($limit < 1) {
+        $limit = 1;
+      }
+      if ($page < 1) {
+        $page = 1;
+      }
+      $page = $page - 1;
+    }
+
+    $arr = [];
+    $total_index = 0;
+
     $arr_txn = [];
     $arr_txn_final = [];
-    $page_index = 0;
-    if (isset($page_index)) {
-      $page_index = $page_index;
-    }
 
     $result_txn = $session->execute($session->prepare('SELECT transasscust,assetcat,transdeptname,createdate FROM transasscust WHERE transasscompanycode=? AND status=? ALLOW FILTERING'), array('arguments' => array($companycode, "1")));
     foreach ($result_txn as $row_txn) {
@@ -318,17 +468,13 @@ function asset_view_data($companycode, $email, $role, $page_index, $return_type 
     }
 
     arsort($arr_txn);
-    if ($return_type == "all_data") {
-      $arr_txn_final = $arr_txn;
-    } else {
-      $arr_chunk = array_chunk($arr_txn, 10, true);
-      $total_index = count($arr_chunk);
-      if (isset($arr_chunk[$page_index])) {
-        $arr_txn_final = $arr_chunk[$page_index];
-      }
-    }
 
-    foreach ($arr_txn_final as $keyid => $valueid) {
+    $array_chunk = array_chunk($arr_txn, $limit, true);
+    $total_index = count($array_chunk);
+    if (isset($array_chunk[$page])) {
+      $arr_txn_final = $array_chunk[$page];
+    }
+    asset_view_data=> $valueid) {
       $result = $session->execute($session->prepare('SELECT * FROM transasscust WHERE transasscust=?'), array('arguments' => array(new \Cassandra\Uuid($keyid))));
       foreach ($result as $row) {
         $pdate = (array) $row['transpurdt'];
@@ -424,9 +570,13 @@ function asset_view_data($companycode, $email, $role, $page_index, $return_type 
         );
       }
     }
+
     $arr_final = [
-      "total_index" => $total_index,
-      "page_index" => $page_index,
+      "limit" => $limit,
+      "day" => $day,
+      "page" => $page + 1,
+      "pagination" => $total_index,
+      "total_assets" => count($arr_txn),
       "data" => $arr
     ];
 
@@ -448,7 +598,7 @@ function asset_del_id($companycode, $email, $role, $id)
       $arr_return = ["code" => 200, "success" => true, "data" => "Asset deleted"];
       return $arr_return;
     } else {
-      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Asset Id does not exist!"];
+      return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Asset Id does not exist"];
       exit();
     }
   } catch (Exception $e) {
@@ -518,6 +668,64 @@ function data_row_save($companycode, $email, $role, $data, $id)
     );
     $arr_return = ["code" => 200, "success" => true, "data" => "Asset details edited"];
     return $arr_return;
+  } catch (Exception $e) {
+    return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+  }
+}
+
+function asset_info_data_save($companycode, $email, $role, $data)
+{
+  global $session;
+  $transcode = $data['asset_txn_id_pd'];
+  $data = $data['asset_info_data'];
+  try {
+    $i = 0;
+    $transasscust_id = new \Cassandra\Uuid();
+    $session->execute(
+      $session->prepare('INSERT INTO transasscust(
+        transasscust,createdate,effectivedate,status,transasscompanycode,transasscustcode,transasstrancode,
+        transdeptname,
+        assetcat,
+        assettype,
+        assetname,
+        transassetno,
+        transassetowner,
+        transconfidentiality,
+        transintegrity,
+        transavailability
+        -- transpriv
+
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'),
+      array(
+        'arguments' => array(
+          $transasscust_id,
+          new \Cassandra\timestamp(),
+          new \Cassandra\timestamp(),
+          "1",
+          $GLOBALS['companycode'],
+          $GLOBALS['custcode'],
+          (string) $transcode,
+          escape_input($data['arr_dept'][$i]),
+          escape_input($data['arr_acat'][$i]),
+          escape_input($data['arr_atype'][$i]),
+          escape_input($data['arr_aname'][$i]),
+          escape_input($data['arr_ano'][$i]),
+          escape_input($data['arr_aowner'][$i]),
+          escape_input($data['arr_confd'][$i]),
+          escape_input($data['arr_int'][$i]),
+          escape_input($data['arr_avail'][$i])
+          // escape_input($data['arr_privacy'][$i])
+        )
+      )
+    );
+
+    if (isset($data['send_id_req'])) {
+      echo "success|" . (string) $transasscust_id;
+      exit();
+    } else {
+      echo "success";
+      exit();
+    }
   } catch (Exception $e) {
     return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
   }

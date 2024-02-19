@@ -1,6 +1,6 @@
 <?php
 
-//set header to avoid CORS issue in Browser
+//set header to avoid CORS issue in web Browser
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header("Access-Control-Allow-Headers: x-requested-with, Content-Type, Authorization");
@@ -99,6 +99,15 @@ switch ($route_part_2) {
         break;
     case "implementation":
         require_once 'auth/implementation_routes.php';
+        break;
+    case "kpi_privacy":
+        require_once 'auth/kpi_privacy_routes.php';
+        break;
+    case "kpi_security":
+        require_once 'auth/kpi_security_routes.php';
+        break;
+    case "configuration":
+        require_once 'auth/configuration_routes.php';
         break;
 
     default:
