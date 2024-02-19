@@ -19,6 +19,11 @@ switch ($route_function_trigger_params) {
         GetAssetHandler("asset_type");
         break;
 
+    case 'add_category_input':
+        allowedRequestTypes("POST");
+        GetAssetHandler("add_category_input");
+        break;
+
     case 'asset_data_register':
         allowedRequestTypes("POST");
         GetAssetHandler("asset_data_register");
@@ -37,6 +42,11 @@ switch ($route_function_trigger_params) {
     case 'data_row_save':
         allowedRequestTypes("POST");
         GetAssetHandler("data_row_save");
+        break;
+
+    case 'asset_info_data_save':
+        allowedRequestTypes("POST");
+        GetAssetHandler("asset_info_data_save");
         break;
 
     default:

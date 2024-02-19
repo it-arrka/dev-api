@@ -334,11 +334,13 @@ function calc_class($tid, $companycode, $workflowname, $impactscore, $priority)
     }
     //fetching category number for impactscore
     $query_impact_cat = $session->execute("SELECT ccatcategorynumber FROM companycategorymaster WHERE ccatcompanycode=? AND ccatworkflowname=? AND ccatcategoryname=? AND transactionid=? ALLOW FILTERING", array('arguments' => array($companycode, $workflowname, $impactscore, $tid)));
+    $impact_cat_no = 0;
     foreach ($query_impact_cat as $imp) {
       $impact_cat_no = (int)$imp['ccatcategorynumber'];
     }
     //fetching category number for priority
     $query_priority_cat = $session->execute("SELECT ccatcategorynumber FROM companycategorymaster WHERE ccatcompanycode=? AND ccatworkflowname=? AND ccatcategoryname=? AND transactionid=? ALLOW FILTERING", array('arguments' => array($companycode, $workflowname, $priority, $tid)));
+    $priority_cat_no = 0;
     foreach ($query_priority_cat as $prio) {
       $priority_cat_no = (int)$prio['ccatcategorynumber'];
     }
@@ -383,13 +385,13 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
     $required_keys = [
       "irid", "iaprivrelation", "type_of_incident", "impact", "itornotit",
       "public_confidence_and_reputation", "loss_of_sensitive_information", "customer_service_delivery", "regulatory_client_compliance",
-      "priority_to_respond", "additional_information", "assign_for_action_role", "assign_for_action_email"
+      "priority_to_respond", "additional_information", "assign_for_action_role", "assign_for_action_email", "category_of_breach"
     ];
 
     $required_keys_val = [
       "irid", "iaprivrelation", "type_of_incident", "impact", "itornotit",
       "public_confidence_and_reputation", "loss_of_sensitive_information", "customer_service_delivery", "regulatory_client_compliance",
-      "priority_to_respond", "assign_for_action_role", "assign_for_action_email"
+      "priority_to_respond", "assign_for_action_role", "assign_for_action_email", "category_of_breach"
     ];
 
     //check if array is valid
@@ -406,11 +408,15 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
 
     //get tid and wid
     $result = $session->execute("SELECT * FROM incidentraise WHERE irid=?", array('arguments' => array(new \Cassandra\Uuid($data['irid']))));
+    if($result -> count() == 0){
+      $result = $session->execute("SELECT * FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING", array('arguments' => array($data['irid'])));
+    }
     if ($result->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
+    $data['irid'] = (string)$result[0]['irid'];
     $screen_status = (int)$result[0]['screen_status'];
     $screen_status_dpo = (int)$result[0]['screen_status_dpo'];
     $updated_screen_status = '2';
@@ -437,14 +443,14 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
       $selection_arr[escape_input($value)] = escape_input(strtolower($data[$key]));
     }
 
-    $query_get_iaid = $session->execute("SELECT * FROM incidentanalyse WHERE iacompanycode=? AND iaworkflowid=? AND status=? ALLOW FILTERING", array('arguments' => array($companycode, $wid, "1")));
+    $query_get_iaid = $session->execute("SELECT * FROM incidentanalyse WHERE iacompanycode=? AND iaworkflowid=? ALLOW FILTERING", array('arguments' => array($companycode, $wid)));
     if ($query_get_iaid->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
     $calc_ia_func = calc_ia($tid, $companycode, "incident", $selection_arr);
-    if ($calc_ia_func['success']) {
+    if (!$calc_ia_func['success']) {
       return $calc_ia_func;
       exit();
     }
@@ -452,7 +458,7 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
 
 
     $calc_class_func = calc_class($tid, $companycode, "incident", $calc_ia, escape_input($data['priority_to_respond']));
-    if ($calc_class_func['success']) {
+    if (!$calc_class_func['success']) {
       return $calc_class_func;
       exit();
     }
@@ -502,13 +508,11 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
     $query_insert = $session->execute(
       $session->prepare("UPDATE incidentanalyse SET
     iarespondpriority=?,
-    iabreachtype=?,
+    iapbreachtype=?,
     iaanalyseextrainfo=?,
     iaclassification=?,
     iaassignforactionrole=?,
     iaassignforaction=?,
-    form_status = ?,
-    screen_status = ?,
     iaimpactscore = ?,
     iaprivrelation = ?
     WHERE iaid=?"),
@@ -519,16 +523,15 @@ function save_incident_analyze_security($companycode, $email, $role, $data)
         $calc_class,
         escape_input($data['assign_for_action_role']),
         escape_input($data['assign_for_action_email']),
-        "0",
-        $updated_screen_status,
         $calc_ia,
         escape_input($data['iaprivrelation']),
         $query_get_iaid[0]['iaid']
       ))
     );
 
-    notice_update_all($wid, $companycode, $email, $role, "IN01");
+    $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,screen_status=? WHERE irid=?"),array('arguments'=>array("0",$updated_screen_status,new \Cassandra\Uuid($data['irid']))));
 
+    notice_update_all($wid, $companycode, $email, $role, "IN01");
     $notice_link = "incident_resolve.php?tid=" . (string)$tid . "&wid=" . $wid;
     notice_write("IN03", $companycode, $email, $role, $notice_link, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']), $incidentno, $wid);
     $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
@@ -586,11 +589,15 @@ function save_incident_analyze_privacy($companycode, $email, $role, $data)
 
     //get tid and wid
     $result = $session->execute("SELECT * FROM incidentraise WHERE irid=?", array('arguments' => array(new \Cassandra\Uuid($data['irid']))));
+    if($result -> count() == 0){
+      $result = $session->execute("SELECT * FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING", array('arguments' => array($data['irid'])));
+    }
     if ($result->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
+    $data['irid'] = (string)$result[0]['irid'];
     $screen_status = (int)$result[0]['screen_status'];
     $screen_status_dpo = (int)$result[0]['screen_status_dpo'];
     $updated_screen_status = '2';
@@ -617,14 +624,14 @@ function save_incident_analyze_privacy($companycode, $email, $role, $data)
       $selection_arr[escape_input($value)] = escape_input(strtolower($data[$key]));
     }
 
-    $query_get_iaid = $session->execute("SELECT * FROM incidentanalyse WHERE iacompanycode=? AND iaworkflowid=? AND status=? ALLOW FILTERING", array('arguments' => array($companycode, $wid, "1")));
+    $query_get_iaid = $session->execute("SELECT * FROM incidentanalyse WHERE iacompanycode=? AND iaworkflowid=? ALLOW FILTERING", array('arguments' => array($companycode, $wid)));
     if ($query_get_iaid->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
     $calc_ia_func = calc_ia($tid, $companycode, "incident", $selection_arr);
-    if ($calc_ia_func['success']) {
+    if (!$calc_ia_func['success']) {
       return $calc_ia_func;
       exit();
     }
@@ -632,7 +639,7 @@ function save_incident_analyze_privacy($companycode, $email, $role, $data)
 
 
     $calc_class_func = calc_class($tid, $companycode, "incident", $calc_ia, escape_input($data['priority_to_respond']));
-    if ($calc_class_func['success']) {
+    if (!$calc_class_func['success']) {
       return $calc_class_func;
       exit();
     }
@@ -687,8 +694,6 @@ function save_incident_analyze_privacy($companycode, $email, $role, $data)
     iapclassification=?,
     iapassignforactionrole=?,
     iapassignforaction=?,
-    form_status_dpo = ?,
-    screen_status_dpo = ?,
     iapimpactscore=?,
     iaprivrelation = ?,
     WHERE iaid=?"),
@@ -702,16 +707,14 @@ function save_incident_analyze_privacy($companycode, $email, $role, $data)
         $calc_class,
         escape_input($data['assign_for_action_role']),
         escape_input($data['assign_for_action_email']),
-        "0",
-        $updated_screen_status,
         $calc_ia,
         escape_input($data['iaprivrelation']),
         $query_get_iaid[0]['iaid']
       ))
     );
 
+    $session->execute($session->prepare("UPDATE incidentraise SET form_status_dpo=?,screen_status_dpo=? WHERE irid=?"),array('arguments'=>array("0",$updated_screen_status,new \Cassandra\Uuid($data['irid']))));
     notice_update_all($wid, $companycode, $email, $role, "IN02");
-
     $notice_link = "incident_resolve.php?tid=" . (string)$tid . "&wid=" . $wid;
     notice_write("IN04", $companycode, $email, $role, $notice_link, escape_input($data['assign_for_action_email']), escape_input($data['assign_for_action_role']), $incidentno, $wid);
 
@@ -748,12 +751,15 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
 
     //get tid and wid
     $result = $session->execute("SELECT * FROM incidentraise WHERE irid=?", array('arguments' => array(new \Cassandra\Uuid($data['irid']))));
+    if($result -> count() == 0){
+      $result = $session->execute("SELECT * FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING", array('arguments' => array($data['irid'])));
+    }
     if ($result->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
-
+    $data['irid'] = (string)$result[0]['irid'];
     $screen_status = (int)$result[0]['screen_status'];
     $screen_status_dpo = (int)$result[0]['screen_status_dpo'];
     $updated_screen_status = '2';
@@ -816,7 +822,7 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
 
     $session->execute($session->prepare("UPDATE incidentraise SET form_status=? WHERE irid=?"), array('arguments' => array("2", new \Cassandra\Uuid($data['irid']))));
 
-    if ($screen_status == '2') {
+    // if ($screen_status == '2') {
       //Notice create/update
       $notice_update = notice_update_all($wid, $companycode, $email, $role, "IN03");
       $result_analyse = $session->execute("SELECT iaassignforaction,iaassignforactionrole FROM incidentanalyse WHERE iacompanycode=? AND iaworkflowid=? AND status=? ALLOW FILTERING", array('arguments' => array($companycode, $wid, "1")));
@@ -826,12 +832,12 @@ function save_incident_resolve_security($companycode, $email, $role, $data)
         notice_write("IN05", $companycode, $email, $role, $notice_link, $row_analyse['iaassignforaction'], $row_analyse['iaassignforactionrole'], $incidentno, $wid);
       }
 
-      if ($screen_status_dpo == '2') {
-        $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,form_status_dpo=?,screen_status=?,screen_status_dpo=? WHERE irid=?"), array('arguments' => array("0", "0", "3", "3", new \Cassandra\Uuid($data['irid']))));
-      } else {
+      // if ($screen_status_dpo == '2') {
+      //   $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,form_status_dpo=?,screen_status=?,screen_status_dpo=? WHERE irid=?"), array('arguments' => array("0", "0", "3", "3", new \Cassandra\Uuid($data['irid']))));
+      // } else {
         $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,screen_status=? WHERE irid=?"), array('arguments' => array("0", "3", new \Cassandra\Uuid($data['irid']))));
-      }
-    }
+      // }
+    // }
 
     $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
@@ -866,12 +872,15 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
 
     //get tid and wid
     $result = $session->execute("SELECT * FROM incidentraise WHERE irid=?", array('arguments' => array(new \Cassandra\Uuid($data['irid']))));
+    if($result -> count() == 0){
+      $result = $session->execute("SELECT * FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING", array('arguments' => array($data['irid'])));
+    }
     if ($result->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
-
+    $data['irid'] = (string)$result[0]['irid'];
     $screen_status = (int)$result[0]['screen_status'];
     $screen_status_dpo = (int)$result[0]['screen_status_dpo'];
     $updated_screen_status = '2';
@@ -934,7 +943,7 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
 
     $session->execute($session->prepare("UPDATE incidentraise SET form_status=? WHERE irid=?"), array('arguments' => array("2", new \Cassandra\Uuid($data['irid']))));
 
-    if ($screen_status_dpo == '2') {
+    // if ($screen_status_dpo == '2') {
       //Notice create/update
       $notice_update = notice_update_all($wid, $companycode, $email, $role, "IN04");
       $result_analyse = $session->execute("SELECT iapassignforaction,iapassignforactionrole FROM incidentanalyse WHERE iacompanycode=? AND iaworkflowid=? AND status=? ALLOW FILTERING", array('arguments' => array($companycode, $wid, "1")));
@@ -944,12 +953,12 @@ function save_incident_resolve_privacy($companycode, $email, $role, $data)
         $notice_output = notice_write("IN06", $companycode, $email, $role, $notice_link, $row_analyse['iapassignforaction'], $row_analyse['iapassignforactionrole'], $incidentno, $wid);
       }
 
-      if ($screen_status == '2') {
-        $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,form_status_dpo=?,screen_status=?,screen_status_dpo=? WHERE irid=?"), array('arguments' => array("0", "0", "3", "3", new \Cassandra\Uuid($data['irid']))));
-      } else {
+      // if ($screen_status == '2') {
+      //   $session->execute($session->prepare("UPDATE incidentraise SET form_status=?,form_status_dpo=?,screen_status=?,screen_status_dpo=? WHERE irid=?"), array('arguments' => array("0", "0", "3", "3", new \Cassandra\Uuid($data['irid']))));
+      // } else {
         $session->execute($session->prepare("UPDATE incidentraise SET form_status_dpo=?,screen_status_dpo=? WHERE irid=?"), array('arguments' => array("0", "3", new \Cassandra\Uuid($data['irid']))));
-      }
-    }
+      // }
+    // }
     $arr_return = ["code" => 200, "success" => true, "data" => ["message" => "Success"]];
     return $arr_return;
   } catch (\Exception $e) {
@@ -977,12 +986,15 @@ function save_incident_investigate_security($companycode, $email, $role, $data)
 
     //get tid and wid
     $result = $session->execute("SELECT * FROM incidentraise WHERE irid=?", array('arguments' => array(new \Cassandra\Uuid($data['irid']))));
+    if($result -> count() == 0){
+      $result = $session->execute("SELECT * FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING", array('arguments' => array($data['irid'])));
+    }
     if ($result->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
-
+    $data['irid'] = (string)$result[0]['irid'];
     $screen_status = (int)$result[0]['screen_status'];
     $screen_status_dpo = (int)$result[0]['screen_status_dpo'];
     $updated_screen_status = '2';
@@ -1045,12 +1057,15 @@ function save_incident_investigate_privacy($companycode, $email, $role, $data)
 
     //get tid and wid
     $result = $session->execute("SELECT * FROM incidentraise WHERE irid=?", array('arguments' => array(new \Cassandra\Uuid($data['irid']))));
+    if($result -> count() == 0){
+      $result = $session->execute("SELECT * FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING", array('arguments' => array($data['irid'])));
+    }
     if ($result->count() == 0) {
       return ["code" => 400, "success" => false, "message" => E_PAYLOAD_INV, "error" => "Invalid Incident"];
       exit();
     }
 
-
+    $data['irid'] = (string)$result[0]['irid'];
     $screen_status = (int)$result[0]['screen_status'];
     $screen_status_dpo = (int)$result[0]['screen_status_dpo'];
     $updated_screen_status = '2';
@@ -1269,6 +1284,12 @@ function get_incident_raise_data($companycode, $irid)
         createdate,form_status,form_status_dpo,ircompanycode,ircustemail,irdectlocation,irdetectiondate,irdetectiontime,irextrainfo,irhow,irimpact,irincidentcategory,irincidentno,irincidentnofixed,irincisubcategory,iritornonit,irname,irphone,irprivrelation,irreportdate,irreportlocation,irreporttime,irrole,irworkflowid,modifydate,screen_status,screen_status_dpo,status,transactionid
     FROM incidentraise WHERE irid=?"), array('arguments' => array(new \Cassandra\Uuid($irid))));
 
+    if($result->count() == 0){
+      $result = $session->execute($session->prepare("SELECT 
+      createdate,form_status,form_status_dpo,ircompanycode,ircustemail,irdectlocation,irdetectiondate,irdetectiontime,irextrainfo,irhow,irimpact,irincidentcategory,irincidentno,irincidentnofixed,irincisubcategory,iritornonit,irname,irphone,irprivrelation,irreportdate,irreportlocation,irreporttime,irrole,irworkflowid,modifydate,screen_status,screen_status_dpo,status,transactionid
+  FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING"), array('arguments' => array($irid)));
+    }
+
     foreach ($result as $row) {
       if ($row['ircompanycode'] == $companycode && $row['status'] == '1') {
         $row['screen_status'] = report_status_by_screen_status($row['screen_status'], 'security');
@@ -1324,6 +1345,9 @@ function get_incident_analyse_data($companycode, $irid)
 
     $arr = [];
     $result_txn = $session->execute($session->prepare("SELECT irworkflowid FROM incidentraise WHERE irid=?"), array('arguments' => array(new \Cassandra\Uuid($irid))));
+    if($result_txn -> count() == 0){
+      $result_txn = $session->execute($session->prepare("SELECT irworkflowid FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING"), array('arguments' => array($irid)));
+    }
     foreach ($result_txn as $row_txn) {
       $result = $session->execute("SELECT * FROM incidentanalyse WHERE iacompanycode=? AND status=? AND iaworkflowid=? ALLOW FILTERING", array('arguments' => array($companycode, "1", $row_txn['irworkflowid'])));
       foreach ($result as $row) {
@@ -1373,6 +1397,9 @@ function get_incident_resolve_data($companycode, $irid)
 
     $arr = [];
     $result_txn = $session->execute($session->prepare("SELECT irworkflowid FROM incidentraise WHERE irid=?"), array('arguments' => array(new \Cassandra\Uuid($irid))));
+    if($result_txn -> count() == 0){
+      $result_txn = $session->execute($session->prepare("SELECT irworkflowid FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING"), array('arguments' => array($irid)));
+    }
     foreach ($result_txn as $row_txn) {
       $result = $session->execute("SELECT * FROM incidentresolve WHERE irecompanycode=? AND status=? AND ireworkflowid=? ALLOW FILTERING", array('arguments' => array($companycode, "1", $row_txn['irworkflowid'])));
       foreach ($result as $row) {
@@ -1421,6 +1448,9 @@ function get_incident_investigate_data($companycode, $irid)
 
     $arr = [];
     $result_txn = $session->execute($session->prepare("SELECT irworkflowid FROM incidentraise WHERE irid=?"), array('arguments' => array(new \Cassandra\Uuid($irid))));
+    if($result_txn -> count() == 0){
+      $result_txn = $session->execute($session->prepare("SELECT irworkflowid FROM incidentraise WHERE irworkflowid=? ALLOW FILTERING"), array('arguments' => array($irid)));
+    }
     foreach ($result_txn as $row_txn) {
       $result = $session->execute("SELECT * FROM incidentinvestigate WHERE iicompanycode=? AND status=? AND iiworkflowid=? ALLOW FILTERING", array('arguments' => array($companycode, "1", $row_txn['irworkflowid'])));
       foreach ($result as $row) {
@@ -1612,20 +1642,20 @@ function initiate_incident($companycode, $email, $role, $data)
     )));
 
     // incidentanalyse workflowid insertion
-    $query_insert_ia = $session->prepare('INSERT INTO incidentanalyse(iaid,iaworkflowid,iacompanycode,transactionid) VALUES(?,?,?,?)');
-    $session->execute($query_insert_ia, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid)));
+    $query_insert_ia = $session->prepare('INSERT INTO incidentanalyse(iaid,iaworkflowid,iacompanycode,transactionid,status) VALUES(?,?,?,?,?)');
+    $session->execute($query_insert_ia, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid,"1")));
 
     // incidentresolve workflowid insertion
-    $query_insert_ire = $session->prepare('INSERT INTO incidentresolve(ireid,ireworkflowid,irecompanycode,transactionid)VALUES(?,?,?,?)');
-    $session->execute($query_insert_ire, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid)));
+    $query_insert_ire = $session->prepare('INSERT INTO incidentresolve(ireid,ireworkflowid,irecompanycode,transactionid,status)VALUES(?,?,?,?,?)');
+    $session->execute($query_insert_ire, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid,"1")));
 
     // incidentinvestigate workflowid insertion
-    $query_insert_ii = $session->prepare('INSERT INTO incidentinvestigate(iiid,iiworkflowid,iicompanycode,transactionid) VALUES(?,?,?,?)');
-    $session->execute($query_insert_ii, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid)));
+    $query_insert_ii = $session->prepare('INSERT INTO incidentinvestigate(iiid,iiworkflowid,iicompanycode,transactionid,status) VALUES(?,?,?,?,?)');
+    $session->execute($query_insert_ii, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid,"1")));
 
     // incidentreport workflowid insertion
-    $query_insert_irp = $session->prepare('INSERT INTO incidentreport(irpid,irpworkflowid,irpcompanycode,transactionid) VALUES(?,?,?,?)');
-    $session->execute($query_insert_irp, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid)));
+    $query_insert_irp = $session->prepare('INSERT INTO incidentreport(irpid,irpworkflowid,irpcompanycode,transactionid,status) VALUES(?,?,?,?,?)');
+    $session->execute($query_insert_irp, array('arguments' => array(new \Cassandra\Uuid(), $workflowid, $companycode, $config_tid,"1")));
     // $session->execute($session->prepare("UPDATE incidentraise SET form_status=? WHERE irid=?"),array('arguments'=>array("1",new \Cassandra\Uuid($_POST['wid_incident_1']))));
 
     //Create notification noDPO

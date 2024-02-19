@@ -51,8 +51,23 @@ switch ($route_function_trigger_params) {
         break;
 
     case 'show-define-risk-all':
-        allowedRequestTypes("POST");
+        allowedRequestTypes("GET");
         GetRiskRegisterHandler("show-define-risk-all");
+        break;
+
+    case 'vularea-read-from-company':
+        allowedRequestTypes("GET");
+        GetRiskRegisterHandler("vularea-read-from-company");
+        break;
+
+    case 'define-risk-data-save':
+        allowedRequestTypes("POST");
+        GetRiskRegisterHandler("define-risk-data-save");
+        break;
+
+    case 'fetch-risk-report':
+        allowedRequestTypes("GET");
+        GetRiskRegisterHandler("fetch-risk-report");
         break;
 
     default:

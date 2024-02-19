@@ -1,19 +1,19 @@
 <?php
 
-require_once $_ENV['HOME_PATH'].'/modules/scheduler_rest_api.php';
+require_once $_ENV['HOME_PATH'] . '/modules/scheduler_rest_api.php';
 
-switch($route_function_trigger_params){
+switch ($route_function_trigger_params) {
     case 'add-activity':
         allowedRequestTypes("POST");
-        GetSchedulerHandler("add-activity");   
+        GetSchedulerHandler("add-activity");
         break;
     case 'report':
         allowedRequestTypes("GET");
-        GetSchedulerHandler("report");   
+        GetSchedulerHandler("report");
         break;
     default:
-        http_response_code(404); 
-        echo json_encode(["message"=>"404 Not Found"]);
+        http_response_code(404);
+        echo json_encode(["message" => "404 Not Found"]);
         exit();
 }
 

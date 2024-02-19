@@ -24,6 +24,11 @@ switch ($route_function_trigger_params) {
         GetImplementationHandler("email_by_role_for_assign");
         break;
 
+    case "reassign_activity_update_reassign":
+        allowedRequestTypes("POST");
+        GetImplementationHandler("reassign_activity_update_reassign");
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(["message" => "404 Not Found"]);

@@ -19,20 +19,32 @@ function GetImplementationHandler($funcCallType)
                 break;
 
             case "overall_activity_read_for_reassign":
-                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_POST['overall_activity_read_for_reassign'])) {
+                $jsonString = file_get_contents('php://input');
+                if ($jsonString == "") {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+                $json = json_decode($jsonString, true);
+                if (!is_array($json)) {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+
+                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['overall_activity_read_for_reassign'])) {
                     $companycode = $GLOBALS['companycode'];
                     $email = $GLOBALS['email'];
                     $role = $GLOBALS['role'];
-                    $actionType = $_POST['overall_activity_read_for_reassign'];
+                    $actionType = $json['overall_activity_read_for_reassign'];
 
                     if ($actionType == 'ALL_ACTION') {
-                        $output = overall_activity_read_for_reassign_action($companycode, $email, $role, $_POST['view_by_sel'], $_POST['custom_from_date'], $_POST['custom_to_date'], $_POST['fetch_from_db']);
+                        $output = overall_activity_read_for_reassign_action($companycode, $email, $role, $json['view_by_sel'], $json['custom_from_date'], $json['custom_to_date'], $json['fetch_from_db']);
                     } else {
                         $output = overall_activity_read_for_reassign($companycode, $email, $role);
                     }
 
                     if ($output['success']) {
                         commonSuccessResponse($output['code'], $output['data']);
+                        break;
                     } else {
                         catchErrorHandler($output['code'], ["message" => $output['message'], "error" => $output['error']]);
                     }
@@ -41,15 +53,27 @@ function GetImplementationHandler($funcCallType)
                 }
 
             case "load_notice_data_per_txn":
-                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_POST['load_notice_data_per_txn'])) {
+                $jsonString = file_get_contents('php://input');
+                if ($jsonString == "") {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+                $json = json_decode($jsonString, true);
+                if (!is_array($json)) {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+
+                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['load_notice_data_per_txn'])) {
                     $companycode = $GLOBALS['companycode'];
                     $email = $GLOBALS['email'];
                     $role = $GLOBALS['role'];
-                    $txnId = $_POST['load_notice_data_per_txn'];
+                    $txnId = $json['load_notice_data_per_txn'];
 
                     $output = load_notice_data_per_txn($companycode, $email, $role, $txnId);
                     if ($output['success']) {
                         commonSuccessResponse($output['code'], $output['data']);
+                        break;
                     } else {
                         catchErrorHandler($output['code'], ["message" => $output['message'], "error" => $output['error']]);
                     }
@@ -58,16 +82,57 @@ function GetImplementationHandler($funcCallType)
                 }
 
             case "email_by_role_for_assign":
-                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $_POST['email_by_role_for_assign'], $_POST['reassign_type'], $_POST['notice_id'])) {
+                $jsonString = file_get_contents('php://input');
+                if ($jsonString == "") {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+                $json = json_decode($jsonString, true);
+                if (!is_array($json)) {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+
+                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'], $json['email_by_role_for_assign'], $json['reassign_type'], $json['notice_id'])) {
                     $companycode = $GLOBALS['companycode'];
                     $email = $GLOBALS['email'];
-                    $role = $_POST['email_by_role_for_assign'];
-                    $reassign_type = $_POST['reassign_type'];
-                    $notice_id = $_POST['notice_id'];
+                    $role = $json['email_by_role_for_assign'];
+                    $reassign_type = $json['reassign_type'];
+                    $notice_id = $json['notice_id'];
 
                     $output = email_by_role_for_assign($companycode, $email, $role, $reassign_type, $notice_id);
                     if ($output['success']) {
                         commonSuccessResponse($output['code'], $output['data']);
+                        break;
+                    } else {
+                        print_r('check');
+                        catchErrorHandler($output['code'], ["message" => $output['message'], "error" => $output['error']]);
+                    }
+                } else {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                }
+
+            case "reassign_activity_update_reassign":
+                $jsonString = file_get_contents('php://input');
+                if ($jsonString == "") {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+                $json = json_decode($jsonString, true);
+                if (!is_array($json)) {
+                    catchErrorHandler(400, ["message" => E_PAYLOAD_INV, "error" => ""]);
+                    exit();
+                }
+
+                if (isset($GLOBALS['companycode'], $GLOBALS['email'], $GLOBALS['role'])) {
+                    $companycode = $GLOBALS['companycode'];
+                    $email = $GLOBALS['email'];
+                    $role = $GLOBALS['role'];
+
+                    $output = reassign_activity_update_reassign($companycode, $email, $role, $jsonString);
+                    if ($output['success']) {
+                        commonSuccessResponse($output['code'], $output['data']);
+                        break;
                     } else {
                         catchErrorHandler($output['code'], ["message" => $output['message'], "error" => $output['error']]);
                     }
@@ -428,7 +493,9 @@ function email_by_role_for_assign($companycode, $email, $role, $reassign_type, $
                 array_push($email_set_from_notice, $row_nxt['notice_to']);
             }
             $arr_diff = array_diff($email_arr, $email_set_from_notice);
-            echo json_encode($arr_diff);
+            // echo json_encode($arr_diff);
+            $arr_return = ["code" => 200, "success" => true, "msg" => "Success", "data" => $arr_diff];
+            return $arr_return;
         } elseif ($reassign_type == 'reassign_all_role') {
 
             //No specific notice txn
@@ -448,7 +515,9 @@ function email_by_role_for_assign($companycode, $email, $role, $reassign_type, $
             }
 
             $arr_diff = array_diff($email_arr, $email_set_from_notice);
-            echo json_encode($arr_diff);
+            // echo json_encode($arr_diff);
+            $arr_return = ["code" => 200, "success" => true, "msg" => "Success", "data" => $arr_diff];
+            return $arr_return;
         } else {
             //No specific notice txn
             //Find out all transaction related to this user $pre_email & $pre_role
@@ -467,14 +536,593 @@ function email_by_role_for_assign($companycode, $email, $role, $reassign_type, $
             }
 
             $arr_diff = array_diff($email_arr, $email_set_from_notice);
-            echo json_encode($arr_diff);
+            // echo json_encode($arr_diff);
+            $arr_return = ["code" => 200, "success" => true, "msg" => "Success", "data" => $arr_diff];
+            return $arr_return;
         }
 
-
     } catch (\Exception $e) {
-        errorLog($_SERVER['REMOTE_ADDR'], "ER003", "database error", "1", $e, $notice_id, $_SERVER['PHP_SELF'], $_SERVER['HTTP_REFERER'], session_id(), http_response_code(), $_SESSION['role'], $_SERVER['HTTP_USER_AGENT'], $_SESSION['email'], $_SESSION['customer_id'], $_SESSION['companycode']);
-        echo "Error Occured$e";
+        return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
     }
 }
+
+function reassign_activity_update_reassign($companycode, $email, $role, $data_pre)
+{
+    try {
+        global $session;
+        $data = json_decode($data_pre, true);
+        $data = $data['reassign_activity_update_reassign'];
+        $email = $data['email'];
+        $role = $data['role'];
+        $assign_all = $data['assign_all'];
+        $id = $data['data']['id'];
+        $pre_email = $data['data']['pre_email'];
+        $pre_role = $data['data']['pre_role'];
+
+        if ($email == '' || $role == '' || $id == '' || $assign_all == '') {
+            echo "Invalid Activity";
+            exit();
+        }
+
+        if ($assign_all == 'reassign_all') {
+            $reassign_activity_update_reassign_all = reassign_activity_update_reassign_all($companycode, $email, $role, $pre_email, $pre_role);
+            echo $reassign_activity_update_reassign_all;
+            exit();
+        } elseif ($assign_all == 'reassign_all_role') {
+            $reassign_activity_update_reassign_all_by_role = reassign_activity_update_reassign_all_by_role($companycode, $email, $role, $pre_email, $pre_role);
+            echo $reassign_activity_update_reassign_all_by_role;
+            exit();
+        } else {
+
+            $result = $session->execute($session->prepare("SELECT * FROM notice WHERE notice_no=? ALLOW FILTERING"), array('arguments' => array(new \Cassandra\Uuid($id))));
+            if ($result->count() == 0) {
+                echo "Invalid Activity. Try Again!";
+                exit();
+            }
+
+            $row = $result[0];
+            $validate_notice = validate_notice_eligibility_for_reassign($row['transactionid'], $row['notice_module_id'], $pre_email, $pre_role, $email, $role, $companycode);
+            if ($validate_notice == 0) {
+                echo "This transaction is already assigned to this user. Please select another user.";
+                exit();
+            }
+
+            //Insert new notice with new email
+            $uuid_new = new \Cassandra\Uuid();
+            $reassigntype = get_reassigntype($row['notice_module_id']);
+            $query_insert_in_company = $session->prepare('INSERT INTO notice(
+       notice_no,
+       companycode,
+       createdate,
+       effectivedate,
+       eventid,
+       notice_alert_status,
+       notice_details,
+       notice_expiry,
+       notice_from,
+       notice_from_role,
+       notice_link,
+       notice_logid,
+       notice_status,
+       notice_module,
+       notice_module_alt,
+       notice_timestamp,
+       notice_to,
+       notice_to_role,
+       notice_type,
+       status,
+       transactionid,
+       notice_law,
+       notice_module_id,
+       notice_module_desc,
+       mail_status,
+       reassigntype
+    )
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $session->execute(
+                $query_insert_in_company,
+                array(
+                    'arguments' => array(
+                        $uuid_new,
+                        $companycode,
+                        new \Cassandra\Timestamp(),
+                        new \Cassandra\Timestamp(),
+                        $row['eventid'],
+                        $row['notice_alert_status'],
+                        $row['notice_details'],
+                        $row['notice_expiry'],
+                        $email,
+                        $role,
+                        $row['notice_link'],
+                        $row['notice_logid'],
+                        $row['notice_status'],
+                        $row['notice_module'],
+                        $row['notice_module_alt'],
+                        $row['notice_timestamp'],
+                        $email,
+                        $role,
+                        $row['notice_type'],
+                        "1",
+                        $row['transactionid'],
+                        $row['notice_law'],
+                        $row['notice_module_id'],
+                        $row['notice_module_desc'],
+                        "0",
+                        $reassigntype
+                    )
+                )
+            );
+            //Update notice
+            $session->execute($session->prepare("UPDATE notice SET status=?,notice_alert_status=?,modifydate=? WHERE notice_no=?"), array('arguments' => array("reassigned", "settled", new \Cassandra\Timestamp(), new \Cassandra\Uuid($id))));
+
+            //Update Transactions tables for individual type
+            switch ($row['notice_module_id']) {
+                case 'MA01':
+                case 'IA01':
+                case 'VA01':
+                    // MA Submit
+                    $result_txn = $session->execute($session->prepare("SELECT id FROM email_role_map_for_assessment WHERE transactionid=? AND email=? AND role=? AND status=? ALLOW FILTERING"), array('arguments' => array($row['transactionid'], $pre_email, $pre_role, "1")));
+                    if ($result_txn->count() > 0) {
+                        $session->execute($session->prepare("UPDATE email_role_map_for_assessment SET email=?,role=? WHERE id=?"), array('arguments' => array($email, $role, $result_txn[0]['id'])));
+                    }
+                    $result_txn_as = $session->execute($session->prepare("SELECT testid FROM assessmentstatus WHERE transactionid=? AND custemail=? AND role=? ALLOW FILTERING"), array('arguments' => array(new \Cassandra\Uuid($row['transactionid']), $pre_email, $pre_role)));
+                    foreach ($result_txn_as as $row_ttds) {
+                        $session->execute($session->prepare("DELETE FROM assessmentstatus WHERE testid=?"), array('arguments' => array($row_ttds['testid'])));
+                    }
+                    break;
+
+                case 'IT02':
+                    // MA Submit
+                    $result_txn = $session->execute($session->prepare("SELECT companycode,status,refid,transactionid,createdate,id FROM actions_data WHERE transactionid=? AND owner=? AND owner_role=? AND status=? ALLOW FILTERING"), array('arguments' => array($row['transactionid'], $pre_email, $pre_role, "1")));
+                    foreach ($result_txn as $row_txn) {
+                        $session->execute(
+                            $session->prepare("UPDATE actions_data SET owner=?,owner_role=?,modifydate=? WHERE companycode=? AND status=? AND refid=? AND transactionid=? AND createdate=? AND id=?"),
+                            array(
+                                'arguments' => array(
+                                    $email,
+                                    $role,
+                                    new \Cassandra\Timestamp(),
+                                    $row_txn['companycode'],
+                                    $row_txn['status'],
+                                    $row_txn['refid'],
+                                    $row_txn['transactionid'],
+                                    $row_txn['createdate'],
+                                    $row_txn['id']
+                                )
+                            )
+                        );
+                    }
+                    break;
+
+
+                default:
+                    // code...
+                    break;
+            }
+
+            // echo "success|" . (string) $uuid_new . "|" . get_name_from_email($email);
+
+            return ["code" => 200, "success" => true, "message" => 'Success'];
+        }
+    } catch (\Exception $e) {
+        return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+    }
+}
+
+function reassign_activity_update_reassign_all($companycode, $email, $role, $pre_email, $pre_role)
+{
+    try {
+        global $session;
+        $arr = [];
+
+        if ($email == '' || $role == '' || $pre_email == '' || $pre_role == '') {
+            return "Invalid Activity";
+            exit();
+        }
+
+        $result_alt = $session->execute(
+            $session->prepare("SELECT transactionid,notice_module_id,notice_to_role FROM notice WHERE notice_to=? AND companycode=? AND notice_alert_status=? AND status=? ALLOW FILTERING"),
+            array(
+                'arguments' => array(
+                    $pre_email,
+                    $companycode,
+                    'urgent',
+                    '1'
+                )
+            )
+        );
+
+        $arr_tid = [];
+        foreach ($result_alt as $row_alt) {
+            $arr_tid[$row_alt['transactionid'] . "-|-" . $row_alt['notice_module_id']] = $row_alt['notice_to_role'];
+        }
+
+        foreach ($arr_tid as $key_tid => $value_tid) {
+            $txnid_arr = explode("-|-", $key_tid);
+            $validate_notice = validate_notice_eligibility_for_reassign($txnid_arr[0], $txnid_arr[1], $pre_email, $pre_role, $email, $role, $companycode);
+            if ($validate_notice == 0) {
+                echo "Transaction for this role is already assigned to this user. Please select another user.";
+                exit();
+            }
+        }
+
+        //check if all role is Available
+        $role_req = [];
+        $result_role = $session->execute(
+            $session->prepare("SELECT notice_to_role FROM notice WHERE notice_to=? AND companycode=? AND notice_alert_status=? AND status=? ALLOW FILTERING"),
+            array(
+                'arguments' => array(
+                    $pre_email,
+                    $companycode,
+                    'urgent',
+                    '1'
+                )
+            )
+        );
+
+        foreach ($result_role as $row_role) {
+            array_push($role_req, $row_role['notice_to_role']);
+        }
+
+        $role_user_has = [];
+        $result_user_role = $session->execute(
+            $session->prepare("SELECT rtcrole FROM roletocustomer WHERE rtccustemail=? AND companycode=? AND rolestatus=? ALLOW FILTERING"),
+            array(
+                'arguments' => array(
+                    $email,
+                    $companycode,
+                    '1'
+                )
+            )
+        );
+        foreach ($result_user_role as $row_user_role) {
+            array_push($role_user_has, $row_user_role['rtcrole']);
+        }
+
+        $arr_diff = array_diff($role_req, $role_user_has);
+
+
+        if (count($arr_diff) > 0) {
+            sort($arr_diff);
+            return implode(", ", array_unique($arr_diff)) . " role/s are not available for this user to assign all actions_data.";
+            exit();
+        }
+
+        //Final assignment
+        $result = $session->execute(
+            $session->prepare("SELECT * FROM notice WHERE notice_to=? AND companycode=? AND notice_alert_status=? AND status=? ALLOW FILTERING"),
+            array(
+                'arguments' => array(
+                    $pre_email,
+                    $companycode,
+                    'urgent',
+                    '1'
+                )
+            )
+        );
+
+
+        foreach ($result as $row) {
+            $reassigntype = get_reassigntype($row['notice_module_id']);
+            //Insert new notice with new email
+            $uuid_new = new \Cassandra\Uuid();
+            $query_insert_in_company = $session->prepare('INSERT INTO notice(
+         notice_no,
+         companycode,
+         createdate,
+         effectivedate,
+         eventid,
+         notice_alert_status,
+         notice_details,
+         notice_expiry,
+         notice_from,
+         notice_from_role,
+         notice_link,
+         notice_logid,
+         notice_status,
+         notice_module,
+         notice_module_alt,
+         notice_timestamp,
+         notice_to,
+         notice_to_role,
+         notice_type,
+         status,
+         transactionid,
+         notice_law,
+         notice_module_id,
+         notice_module_desc,
+         mail_status,
+         reassigntype
+      )
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $session->execute(
+                $query_insert_in_company,
+                array(
+                    'arguments' => array(
+                        $uuid_new,
+                        $companycode,
+                        new \Cassandra\Timestamp(),
+                        new \Cassandra\Timestamp(),
+                        $row['eventid'],
+                        $row['notice_alert_status'],
+                        $row['notice_details'],
+                        $row['notice_expiry'],
+                        $email,
+                        $role,
+                        $row['notice_link'],
+                        $row['notice_logid'],
+                        $row['notice_status'],
+                        $row['notice_module'],
+                        $row['notice_module_alt'],
+                        $row['notice_timestamp'],
+                        $email,
+                        $row['notice_to_role'],
+                        $row['notice_type'],
+                        "1",
+                        $row['transactionid'],
+                        $row['notice_law'],
+                        $row['notice_module_id'],
+                        $row['notice_module_desc'],
+                        "0",
+                        $reassigntype
+                    )
+                )
+            );
+            //Update notice
+            $session->execute($session->prepare("UPDATE notice SET status=?,notice_alert_status=?,modifydate=? WHERE notice_no=?"), array('arguments' => array("reassigned", "settled", new \Cassandra\Timestamp(), $row['notice_no'])));
+
+            //Update Transactions tables for individual type
+            switch ($row['notice_module_id']) {
+                case 'MA01':
+                case 'IA01':
+                case 'VA01':
+                    // MA Submit
+                    $result_txn = $session->execute($session->prepare("SELECT id FROM email_role_map_for_assessment WHERE transactionid=? AND email=? AND role=? AND status=? ALLOW FILTERING"), array('arguments' => array($row['transactionid'], $pre_email, $pre_role, "1")));
+                    if ($result_txn->count() > 0) {
+                        $session->execute($session->prepare("UPDATE email_role_map_for_assessment SET email=?,role=? WHERE id=?"), array('arguments' => array($email, $role, $result_txn[0]['id'])));
+                    }
+                    break;
+
+                case 'IT02':
+                    // MA Submit
+                    $result_txn = $session->execute($session->prepare("SELECT companycode,status,refid,transactionid,createdate,id FROM actions_data WHERE transactionid=? AND owner=? AND owner_role=? AND status=? ALLOW FILTERING"), array('arguments' => array($row['transactionid'], $pre_email, $pre_role, "1")));
+                    foreach ($result_txn as $row_txn) {
+                        $session->execute(
+                            $session->prepare("UPDATE actions_data SET owner=?,owner_role=?,modifydate=? WHERE companycode=? AND status=? AND refid=? AND transactionid=? AND createdate=? AND id=?"),
+                            array(
+                                'arguments' => array(
+                                    $email,
+                                    $role,
+                                    new \Cassandra\Timestamp(),
+                                    $row_txn['companycode'],
+                                    $row_txn['status'],
+                                    $row_txn['refid'],
+                                    $row_txn['transactionid'],
+                                    $row_txn['createdate'],
+                                    $row_txn['id']
+                                )
+                            )
+                        );
+                    }
+                    break;
+            }
+        }
+
+        return "success|reload";
+
+    } catch (\Exception $e) {
+        return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+    }
+}
+
+function reassign_activity_update_reassign_all_by_role($companycode, $email, $role, $pre_email, $pre_role)
+{
+    try {
+        global $session;
+        $arr = [];
+
+        if ($email == '' || $role == '' || $pre_email == '' || $pre_role == '') {
+            return "Invalid Activity";
+            exit();
+        }
+
+        $result_alt = $session->execute(
+            $session->prepare("SELECT transactionid,notice_module_id FROM notice WHERE notice_to=? AND notice_to_role=? AND companycode=? AND notice_alert_status=? AND status=? ALLOW FILTERING"),
+            array(
+                'arguments' => array(
+                    $pre_email,
+                    $pre_role,
+                    $companycode,
+                    'urgent',
+                    '1'
+                )
+            )
+        );
+
+        $arr_tid = [];
+        foreach ($result_alt as $row_alt) {
+            $arr_tid[$row_alt['transactionid'] . "-|-" . $row_alt['notice_module_id']] = "ABC";
+        }
+
+        foreach ($arr_tid as $key_tid => $value_tid) {
+            $txnid_arr = explode("-|-", $key_tid);
+            $validate_notice = validate_notice_eligibility_for_reassign($txnid_arr[0], $txnid_arr[1], $pre_email, $pre_role, $email, $role, $companycode);
+            if ($validate_notice == 0) {
+                echo "Transaction for this role is already assigned to this user. Please select another user.";
+                exit();
+            }
+        }
+
+        $result = $session->execute(
+            $session->prepare("SELECT * FROM notice WHERE notice_to=? AND notice_to_role=? AND companycode=? AND notice_alert_status=? AND status=? ALLOW FILTERING"),
+            array(
+                'arguments' => array(
+                    $pre_email,
+                    $pre_role,
+                    $companycode,
+                    'urgent',
+                    '1'
+                )
+            )
+        );
+        foreach ($result as $row) {
+            $reassigntype = get_reassigntype($row['notice_module_id']);
+            //Insert new notice with new email
+            $uuid_new = new \Cassandra\Uuid();
+            $query_insert_in_company = $session->prepare('INSERT INTO notice(
+         notice_no,
+         companycode,
+         createdate,
+         effectivedate,
+         eventid,
+         notice_alert_status,
+         notice_details,
+         notice_expiry,
+         notice_from,
+         notice_from_role,
+         notice_link,
+         notice_logid,
+         notice_status,
+         notice_module,
+         notice_module_alt,
+         notice_timestamp,
+         notice_to,
+         notice_to_role,
+         notice_type,
+         status,
+         transactionid,
+         notice_law,
+         notice_module_id,
+         notice_module_desc,
+         mail_status,
+         reassigntype
+      )
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $session->execute(
+                $query_insert_in_company,
+                array(
+                    'arguments' => array(
+                        $uuid_new,
+                        $companycode,
+                        new \Cassandra\Timestamp(),
+                        new \Cassandra\Timestamp(),
+                        $row['eventid'],
+                        $row['notice_alert_status'],
+                        $row['notice_details'],
+                        $row['notice_expiry'],
+                        $email,
+                        $role,
+                        $row['notice_link'],
+                        $row['notice_logid'],
+                        $row['notice_status'],
+                        $row['notice_module'],
+                        $row['notice_module_alt'],
+                        $row['notice_timestamp'],
+                        $email,
+                        $role,
+                        $row['notice_type'],
+                        "1",
+                        $row['transactionid'],
+                        $row['notice_law'],
+                        $row['notice_module_id'],
+                        $row['notice_module_desc'],
+                        "0",
+                        $reassigntype
+                    )
+                )
+            );
+            //Update notice
+            $session->execute($session->prepare("UPDATE notice SET status=?,notice_alert_status=?,modifydate=? WHERE notice_no=?"), array('arguments' => array("reassigned", "settled", new \Cassandra\Timestamp(), $row['notice_no'])));
+
+            //Update Transactions tables for individual type
+            switch ($row['notice_module_id']) {
+                case 'MA01':
+                case 'IA01':
+                case 'VA01':
+                    // MA Submit
+                    $result_txn = $session->execute($session->prepare("SELECT id FROM email_role_map_for_assessment WHERE transactionid=? AND email=? AND role=? AND status=? ALLOW FILTERING"), array('arguments' => array($row['transactionid'], $pre_email, $pre_role, "1")));
+                    if ($result_txn->count() > 0) {
+                        $session->execute($session->prepare("UPDATE email_role_map_for_assessment SET email=?,role=? WHERE id=?"), array('arguments' => array($email, $role, $result_txn[0]['id'])));
+                    }
+                    break;
+
+                case 'IT02':
+                    // MA Submit
+                    $result_txn = $session->execute($session->prepare("SELECT companycode,status,refid,transactionid,createdate,id FROM actions_data WHERE transactionid=? AND owner=? AND owner_role=? AND status=? ALLOW FILTERING"), array('arguments' => array($row['transactionid'], $pre_email, $pre_role, "1")));
+                    foreach ($result_txn as $row_txn) {
+                        $session->execute(
+                            $session->prepare("UPDATE actions_data SET owner=?,owner_role=?,modifydate=? WHERE companycode=? AND status=? AND refid=? AND transactionid=? AND createdate=? AND id=?"),
+                            array(
+                                'arguments' => array(
+                                    $email,
+                                    $role,
+                                    new \Cassandra\Timestamp(),
+                                    $row_txn['companycode'],
+                                    $row_txn['status'],
+                                    $row_txn['refid'],
+                                    $row_txn['transactionid'],
+                                    $row_txn['createdate'],
+                                    $row_txn['id']
+                                )
+                            )
+                        );
+                    }
+                    break;
+            }
+        }
+
+        return "success|reload";
+
+    } catch (\Exception $e) {
+        return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+    }
+}
+
+
+function validate_notice_eligibility_for_reassign($transactionid, $notice_module_id, $pre_email, $pre_role, $email, $role, $companycode)
+{
+    try {
+        global $session;
+        $arr_exist = [];
+
+        if ($transactionid == '' || $notice_module_id == '') {
+            return 2;
+            exit();
+        }
+        $result = $session->execute($session->prepare("SELECT notice_to,notice_to_role FROM notice WHERE transactionid=? AND notice_module_id=? AND companycode=? AND status=? ALLOW FILTERING"), array('arguments' => array($transactionid, $notice_module_id, $companycode, "1")));
+        foreach ($result as $row) {
+            if ($email == $row['notice_to'] && $role == $row['notice_to_role']) {
+                return 0;
+                exit();
+            }
+        }
+        return 1;
+    } catch (\Exception $e) {
+        return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+    }
+}
+
+function get_reassigntype($notice_module_id)
+{
+    try {
+        global $session;
+        if ($notice_module_id == '') {
+            return "individual";
+            exit();
+        }
+        $result_action = $session->execute($session->prepare("SELECT reassigntype FROM notice_master WHERE notice_module_id=? ALLOW FILTERING"), array('arguments' => array($notice_module_id)));
+        if ($result_action->count() == 0) {
+            $result_action = $session->execute($session->prepare("SELECT reassigntype FROM notice_master WHERE notice_module_alt=? ALLOW FILTERING"), array('arguments' => array($notice_module_id)));
+        }
+        $reassigntype = "individual";
+        if ($result_action->count() > 0) {
+            $reassigntype = $result_action[0]['reassigntype'];
+        }
+        return $reassigntype;
+    } catch (\Exception $e) {
+        return ["code" => 500, "success" => false, "message" => E_FUNC_ERR, "error" => $e->getMessage()];
+    }
+}
+
 
 ?>
